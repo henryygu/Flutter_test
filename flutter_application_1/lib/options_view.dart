@@ -73,7 +73,7 @@ class _OptionsViewState extends State<OptionsView> {
                 foregroundColor: Theme.of(context).colorScheme.primary,
                 backgroundColor: Theme.of(
                   context,
-                ).colorScheme.primary.withOpacity(0.1),
+                ).colorScheme.primary.withValues(alpha: 0.1),
               ),
             ),
           ),
@@ -96,7 +96,7 @@ class _OptionsViewState extends State<OptionsView> {
               decoration: BoxDecoration(
                 color: Theme.of(
                   context,
-                ).colorScheme.surfaceVariant.withOpacity(0.3),
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: ReorderableListView(
@@ -128,7 +128,7 @@ class _OptionsViewState extends State<OptionsView> {
                                   color:
                                       (_localColors[_localStates[i]] ??
                                               Colors.grey)
-                                          .withOpacity(0.4),
+                                          .withValues(alpha: 0.4),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
@@ -167,7 +167,7 @@ class _OptionsViewState extends State<OptionsView> {
                 filled: true,
                 fillColor: Theme.of(
                   context,
-                ).colorScheme.surfaceVariant.withOpacity(0.3),
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -197,7 +197,7 @@ class _OptionsViewState extends State<OptionsView> {
               decoration: BoxDecoration(
                 color: Theme.of(
                   context,
-                ).colorScheme.surfaceVariant.withOpacity(0.3),
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -216,6 +216,7 @@ class _OptionsViewState extends State<OptionsView> {
                       await Clipboard.setData(
                         ClipboardData(text: buffer.toString()),
                       );
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Markdown copied to clipboard!'),

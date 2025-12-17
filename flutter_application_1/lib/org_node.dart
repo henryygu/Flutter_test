@@ -89,12 +89,16 @@ class OrgNode {
     buffer.writeln('$hashes $todoState $content$tagsString');
 
     // Timestamps
-    if (scheduled != null)
+    if (scheduled != null) {
       buffer.writeln(
-        'SCHEDULED: ${DateFormat('yyyy-MM-dd').format(scheduled!)}',
+        'SCHEDULED: ${DateFormat('yyyy-MM-dd HH:mm').format(scheduled!)}',
       );
-    if (deadline != null)
-      buffer.writeln('DEADLINE: ${DateFormat('yyyy-MM-dd').format(deadline!)}');
+    }
+    if (deadline != null) {
+      buffer.writeln(
+        'DEADLINE: ${DateFormat('yyyy-MM-dd HH:mm').format(deadline!)}',
+      );
+    }
 
     if (description.isNotEmpty) {
       buffer.writeln('DESC: $description');

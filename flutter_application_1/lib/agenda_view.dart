@@ -13,7 +13,7 @@ class AgendaView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sections = manager.agendaSections;
-    final allNodes = _collectAllNodes(manager.rootNodes);
+    final allNodes = manager.collectAllNodes(manager.rootNodes);
     final now = DateTime.now();
 
     return Scaffold(
@@ -59,36 +59,26 @@ class AgendaView extends StatelessWidget {
     List<OrgNode> allNodes,
     DateTime now,
   ) {
-    final filtered = allNodes.where((n) {
-      // 1. Date Filter
-      bool dateMatch = false;
-      final targetDate = n.deadline ?? n.scheduled;
+    final today = DateTime(now.year, now.month, now.day);
+    final start = today.add(Duration(days: section.startOffset));
+    final end = today
+        .add(Duration(days: section.endOffset))
+        .add(const Duration(hours: 23, minutes: 59));
 
-      switch (section.dateFilter) {
-        case DateFilter.overdue:
-          dateMatch =
-              targetDate != null &&
-              targetDate.isBefore(DateTime(now.year, now.month, now.day));
-          break;
-        case DateFilter.today:
-          dateMatch = targetDate != null && isSameDay(targetDate, now);
-          break;
-        case DateFilter.week:
-          if (targetDate == null) break;
-          final nextWeek = now.add(const Duration(days: 7));
-          dateMatch =
-              targetDate.isAfter(now.subtract(const Duration(days: 1))) &&
-              targetDate.isBefore(nextWeek);
-          break;
-        case DateFilter.month:
-          dateMatch =
-              targetDate != null &&
-              targetDate.month == now.month &&
-              targetDate.year == now.year;
-          break;
-        case DateFilter.none:
+    final filtered = allNodes.where((n) {
+      bool dateMatch = false;
+
+      if (section.useScheduled && n.scheduled != null) {
+        if (n.scheduled!.isAfter(start.subtract(const Duration(seconds: 1))) &&
+            n.scheduled!.isBefore(end)) {
           dateMatch = true;
-          break;
+        }
+      }
+      if (section.useDeadline && n.deadline != null) {
+        if (n.deadline!.isAfter(start.subtract(const Duration(seconds: 1))) &&
+            n.deadline!.isBefore(end)) {
+          dateMatch = true;
+        }
       }
 
       // 2. Tag Filter
@@ -184,7 +174,7 @@ class AgendaView extends StatelessWidget {
                             leading: const Icon(Icons.drag_handle),
                             title: Text(s.title),
                             subtitle: Text(
-                              '${s.dateFilter.name} | ${s.tags.length} tags | ${s.states.length} states',
+                              'Today ${s.startOffset} to ${s.endOffset} days | ${s.tags.length} tags',
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -226,13 +216,22 @@ class AgendaView extends StatelessWidget {
 
   void _showEditSectionDialog(BuildContext context, AgendaSection? existing) {
     final titleController = TextEditingController(text: existing?.title ?? '');
-    DateFilter selectedDateFilter = existing?.dateFilter ?? DateFilter.none;
+    final startController = TextEditingController(
+      text: (existing?.startOffset ?? 0).toString(),
+    );
+    final endController = TextEditingController(
+      text: (existing?.endOffset ?? 0).toString(),
+    );
+    bool useScheduled = existing?.useScheduled ?? true;
+    bool useDeadline = existing?.useDeadline ?? true;
     Set<String> selectedTags = Set<String>.from(existing?.tags ?? {});
     Set<String> selectedStates = Set<String>.from(existing?.states ?? {});
 
-    final allTags = _collectAllNodes(
-      manager.rootNodes,
-    ).expand((n) => n.tags).toSet().toList();
+    final allTags = manager
+        .collectAllNodes(manager.rootNodes)
+        .expand((n) => n.tags)
+        .toSet()
+        .toList();
 
     showDialog(
       context: context,
@@ -251,28 +250,42 @@ class AgendaView extends StatelessWidget {
                     hintText: 'e.g. Overdue Tasks',
                   ),
                 ),
-                const SizedBox(height: 24),
-                const Text(
-                  'DATE FILTER',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                DropdownButton<DateFilter>(
-                  isExpanded: true,
-                  value: selectedDateFilter,
-                  items: DateFilter.values
-                      .map(
-                        (f) => DropdownMenuItem(
-                          value: f,
-                          child: Text(f.name.toUpperCase()),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: startController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Start Offset (Days)',
+                          hintText: '-1 = Yesterday',
                         ),
-                      )
-                      .toList(),
-                  onChanged: (val) =>
-                      setDialogState(() => selectedDateFilter = val!),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        controller: endController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'End Offset (Days)',
+                          hintText: '0 = Today',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                CheckboxListTile(
+                  title: const Text('Use Scheduled Dates'),
+                  value: useScheduled,
+                  onChanged: (val) => setDialogState(() => useScheduled = val!),
+                ),
+                CheckboxListTile(
+                  title: const Text('Use Deadline Dates'),
+                  value: useDeadline,
+                  onChanged: (val) => setDialogState(() => useDeadline = val!),
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -347,7 +360,10 @@ class AgendaView extends StatelessWidget {
                 final newSect = AgendaSection(
                   id: existing?.id ?? const Uuid().v4(),
                   title: titleController.text,
-                  dateFilter: selectedDateFilter,
+                  startOffset: int.tryParse(startController.text) ?? 0,
+                  endOffset: int.tryParse(endController.text) ?? 0,
+                  useScheduled: useScheduled,
+                  useDeadline: useDeadline,
                   tags: selectedTags,
                   states: selectedStates,
                 );
@@ -392,9 +408,9 @@ class AgendaView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blueGrey.withOpacity(0.1)),
+        border: Border.all(color: Colors.blueGrey.withValues(alpha: 0.1)),
       ),
       child: Center(
         child: Text(
@@ -410,13 +426,4 @@ class AgendaView extends StatelessWidget {
 
   bool isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
-
-  List<OrgNode> _collectAllNodes(List<OrgNode> nodes) {
-    final List<OrgNode> result = [];
-    for (var node in nodes) {
-      result.add(node);
-      result.addAll(_collectAllNodes(node.children));
-    }
-    return result;
-  }
 }

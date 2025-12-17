@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'node_manager.dart';
 import 'org_node_widget.dart';
 import 'agenda_view.dart';
+import 'timeline_view.dart';
 import 'options_view.dart';
 import 'kanban_view.dart';
 
@@ -90,7 +91,9 @@ class _HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           appBar: AppBar(
             title: Text(_getPageTitle()),
-            backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest,
           ),
           body: _buildPage(),
           floatingActionButton: _selectedIndex == 0
@@ -105,6 +108,10 @@ class _HomeScreenState extends State<HomeScreen> {
               NavigationDestination(
                 icon: Icon(Icons.calendar_today),
                 label: 'Agenda',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.timeline),
+                label: 'Timeline',
               ),
               NavigationDestination(
                 icon: Icon(Icons.view_kanban),
@@ -131,8 +138,10 @@ class _HomeScreenState extends State<HomeScreen> {
       case 1:
         return 'Agenda View';
       case 2:
-        return 'Kanban Board';
+        return 'Timeline';
       case 3:
+        return 'Kanban Board';
+      case 4:
         return 'Settings';
       default:
         return 'Org Mode';
@@ -146,8 +155,10 @@ class _HomeScreenState extends State<HomeScreen> {
       case 1:
         return AgendaView(manager: _manager);
       case 2:
-        return KanbanView(manager: _manager);
+        return TimelineView(manager: _manager);
       case 3:
+        return KanbanView(manager: _manager);
+      case 4:
         return OptionsView(manager: _manager);
       default:
         return const SizedBox();

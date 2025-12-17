@@ -42,8 +42,8 @@ class KanbanView extends StatelessWidget {
     final color = manager.getColorForState(state);
 
     return DragTarget<OrgNode>(
-      onAccept: (node) {
-        manager.setNodeState(node, state);
+      onAcceptWithDetails: (details) {
+        manager.setNodeState(details.data, state);
       },
       builder: (context, candidateData, rejectedData) {
         return Container(
@@ -51,8 +51,8 @@ class KanbanView extends StatelessWidget {
           margin: const EdgeInsets.only(right: 16),
           decoration: BoxDecoration(
             color: candidateData.isNotEmpty
-                ? color.withOpacity(0.1)
-                : Colors.blueGrey.withOpacity(0.05),
+                ? color.withValues(alpha: 0.1)
+                : Colors.blueGrey.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: candidateData.isNotEmpty ? color : Colors.transparent,
@@ -90,7 +90,7 @@ class KanbanView extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.blueGrey.withOpacity(0.1),
+                        color: Colors.blueGrey.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -214,7 +214,7 @@ class _KanbanCard extends StatelessWidget {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: Colors.blueGrey.withOpacity(0.1)),
+          side: BorderSide(color: Colors.blueGrey.withValues(alpha: 0.1)),
         ),
         child: InkWell(
           onTap: () => Navigator.push(
@@ -299,7 +299,7 @@ class _Tag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(

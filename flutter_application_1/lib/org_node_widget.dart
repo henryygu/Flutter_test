@@ -44,7 +44,7 @@ class OrgNodeWidget extends StatelessWidget {
                         : Icons.keyboard_arrow_right,
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.7),
+                    ).colorScheme.primary.withValues(alpha: 0.7),
                   ),
                   onPressed: () => manager.toggleExpanded(node),
                   padding: EdgeInsets.zero,
@@ -70,7 +70,9 @@ class OrgNodeWidget extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: _getStateColor(node.todoState).withOpacity(0.3),
+                        color: _getStateColor(
+                          node.todoState,
+                        ).withValues(alpha: 0.3),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -133,7 +135,7 @@ class OrgNodeWidget extends StatelessWidget {
                     ),
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.6),
+                    ).colorScheme.primary.withValues(alpha: 0.6),
                   ),
                   _ActionButton(
                     icon: Icons.access_time_filled,
@@ -142,7 +144,7 @@ class OrgNodeWidget extends StatelessWidget {
                         : manager.clockIn(node),
                     color: manager.isClockedIn(node)
                         ? Colors.green
-                        : Colors.grey.withOpacity(0.5),
+                        : Colors.grey.withValues(alpha: 0.5),
                   ),
                   _ActionButton(
                     icon: Icons.calendar_month,
@@ -151,14 +153,14 @@ class OrgNodeWidget extends StatelessWidget {
                         ? Colors.green
                         : Theme.of(
                             context,
-                          ).colorScheme.primary.withOpacity(0.6),
+                          ).colorScheme.primary.withValues(alpha: 0.6),
                   ),
                   _ActionButton(
                     icon: Icons.add_circle_outline,
                     onPressed: () => manager.addChild(node, ''),
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.6),
+                    ).colorScheme.primary.withValues(alpha: 0.6),
                   ),
                 ],
               ),
@@ -298,12 +300,12 @@ class OrgNodeWidget extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? _getStateColor(state)
-                              : _getStateColor(state).withOpacity(0.1),
+                              : _getStateColor(state).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected
                                 ? Colors.transparent
-                                : _getStateColor(state).withOpacity(0.3),
+                                : _getStateColor(state).withValues(alpha: 0.3),
                           ),
                         ),
                         child: Text(
@@ -380,27 +382,42 @@ class OrgNodeWidget extends StatelessWidget {
   }
 
   void _pickDate(BuildContext context, {required bool isDeadline}) async {
-    final initialDate =
+    final initial =
         (isDeadline ? node.deadline : node.scheduled) ?? DateTime.now();
-    final DateTime? picked = await showDatePicker(
+    final DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: initialDate,
+      initialDate: initial,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
       helpText: isDeadline ? 'SET DEADLINE' : 'SCHEDULE TASK',
     );
-    if (picked != null) {
+
+    if (pickedDate != null) {
+      if (!context.mounted) return;
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initial),
+      );
+
+      final finalDateTime = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime?.hour ?? initial.hour,
+        pickedTime?.minute ?? initial.minute,
+      );
+
       if (isDeadline) {
-        manager.setDeadline(node, picked);
+        manager.setDeadline(node, finalDateTime);
       } else {
-        manager.setScheduled(node, picked);
+        manager.setScheduled(node, finalDateTime);
       }
     }
   }
 
   Color _getStateColor(String state) => manager.getColorForState(state);
 
-  String _formatDate(DateTime dt) => DateFormat('MMM dd').format(dt);
+  String _formatDate(DateTime dt) => DateFormat('MMM dd HH:mm').format(dt);
 
   String _formatDuration(Duration d) {
     if (d.inHours > 0) return "${d.inHours}h ${d.inMinutes.remainder(60)}m";
@@ -445,7 +462,7 @@ class _MetadataTag extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(

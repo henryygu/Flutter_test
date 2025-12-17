@@ -75,7 +75,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: color.withOpacity(0.3),
+                            color: color.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -123,7 +123,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                   filled: true,
                   fillColor: Theme.of(
                     context,
-                  ).colorScheme.surfaceVariant.withOpacity(0.3),
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -242,7 +242,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
           label: 'Scheduled',
           value: widget.node.scheduled == null
               ? 'Set Date'
-              : DateFormat('MMM dd').format(widget.node.scheduled!),
+              : DateFormat('MMM dd HH:mm').format(widget.node.scheduled!),
           icon: Icons.event,
           color: widget.node.scheduled != null ? Colors.green : Colors.grey,
           onTap: () => _pickDate(context, isDeadline: false),
@@ -251,7 +251,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
           label: 'Deadline',
           value: widget.node.deadline == null
               ? 'Set Date'
-              : DateFormat('MMM dd').format(widget.node.deadline!),
+              : DateFormat('MMM dd HH:mm').format(widget.node.deadline!),
           icon: Icons.notification_important,
           color: widget.node.deadline != null ? Colors.red : Colors.grey,
           onTap: () => _pickDate(context, isDeadline: true),
@@ -329,12 +329,14 @@ class _TaskDetailViewState extends State<TaskDetailView> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isManual
-              ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: isManual
               ? Border.all(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.1),
                 )
               : null,
         ),
@@ -431,12 +433,14 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                           vertical: 12,
                         ),
                         decoration: BoxDecoration(
-                          color: isSelected ? color : color.withOpacity(0.1),
+                          color: isSelected
+                              ? color
+                              : color.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected
                                 ? Colors.transparent
-                                : color.withOpacity(0.3),
+                                : color.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Text(
@@ -459,21 +463,36 @@ class _TaskDetailViewState extends State<TaskDetailView> {
   }
 
   void _pickDate(BuildContext context, {required bool isDeadline}) async {
-    final initialDate =
+    final initial =
         (isDeadline ? widget.node.deadline : widget.node.scheduled) ??
         DateTime.now();
-    final DateTime? picked = await showDatePicker(
+    final DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: initialDate,
+      initialDate: initial,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
       helpText: isDeadline ? 'SET DEADLINE' : 'SCHEDULE TASK',
     );
-    if (picked != null) {
+
+    if (pickedDate != null) {
+      if (!context.mounted) return;
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initial),
+      );
+
+      final finalDateTime = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime?.hour ?? initial.hour,
+        pickedTime?.minute ?? initial.minute,
+      );
+
       if (isDeadline) {
-        widget.manager.setDeadline(widget.node, picked);
+        widget.manager.setDeadline(widget.node, finalDateTime);
       } else {
-        widget.manager.setScheduled(widget.node, picked);
+        widget.manager.setScheduled(widget.node, finalDateTime);
       }
     }
   }
@@ -536,7 +555,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                 label: Text('#$tag', style: const TextStyle(fontSize: 12)),
                 onDeleted: () => widget.manager.removeTag(widget.node, tag),
                 deleteIcon: const Icon(Icons.close, size: 14),
-                backgroundColor: Colors.blueAccent.withOpacity(0.1),
+                backgroundColor: Colors.blueAccent.withValues(alpha: 0.1),
                 side: BorderSide.none,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),

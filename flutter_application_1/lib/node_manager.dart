@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'org_node.dart';
 import 'persistence_manager.dart';
@@ -20,9 +19,15 @@ class NodeManager extends ChangeNotifier {
   List<String> _kanbanColumns = ['TODO', 'WAITING', 'STALLED', 'DONE'];
 
   List<AgendaSection> _agendaSections = [
-    AgendaSection(id: '1', title: 'Overdue', dateFilter: DateFilter.overdue),
-    AgendaSection(id: '2', title: 'Due Today', dateFilter: DateFilter.today),
-    AgendaSection(id: '3', title: 'Quick Pending', states: {'TODO', 'WAITING'}),
+    AgendaSection(id: '1', title: 'Overdue', startOffset: -30, endOffset: -1),
+    AgendaSection(id: '2', title: 'Due Today', startOffset: 0, endOffset: 0),
+    AgendaSection(
+      id: '3',
+      title: 'Personal (Coming Up)',
+      startOffset: 1,
+      endOffset: 7,
+      tags: {'Personal'},
+    ),
   ];
 
   NodeManager() {
@@ -242,6 +247,16 @@ class NodeManager extends ChangeNotifier {
 
   void setAgendaSections(List<AgendaSection> sections) {
     _agendaSections = sections;
+    _saveToDisk();
     notifyListeners();
+  }
+
+  List<OrgNode> collectAllNodes(List<OrgNode> nodes) {
+    final List<OrgNode> result = [];
+    for (var node in nodes) {
+      result.add(node);
+      result.addAll(collectAllNodes(node.children));
+    }
+    return result;
   }
 }

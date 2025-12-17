@@ -35,7 +35,7 @@ class PersistenceManager {
     buffer.writeln('# CONFIG');
     buffer.writeln('STATES: ${states.join(',')}');
     final colorStrings = colors.entries
-        .map((e) => '${e.key}:${e.value.value}')
+        .map((e) => '${e.key}:${e.value.toARGB32()}')
         .join(',');
     buffer.writeln('COLORS: $colorStrings');
     buffer.writeln('KANBAN: ${kanbanColumns.join(',')}');
@@ -55,8 +55,9 @@ class PersistenceManager {
 
     try {
       final file = await _localFile;
-      if (!await file.exists())
+      if (!await file.exists()) {
         return {'nodes': <OrgNode>[], 'states': null, 'colors': null};
+      }
 
       final content = await file.readAsString();
       return _parseMarkdownExtended(content);

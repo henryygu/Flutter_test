@@ -188,36 +188,49 @@ class _OptionsViewState extends State<OptionsView> {
                   },
                 ),
               ),
+            ),
             const SizedBox(height: 32),
             _buildSectionHeader('Data & Storage', Icons.storage),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceVariant.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 children: [
-                   ListTile(
+                  ListTile(
                     title: const Text('Export to Markdown'),
-                    subtitle: const Text('Copy all tasks to clipboard in Org-Markdown format'),
+                    subtitle: const Text(
+                      'Copy all tasks to clipboard in Org-Markdown format',
+                    ),
                     trailing: const Icon(Icons.copy),
                     onTap: () async {
                       final buffer = StringBuffer();
                       for (var node in widget.manager.rootNodes) {
                         buffer.write(node.toMarkdown());
                       }
-                      await Clipboard.setData(ClipboardData(text: buffer.toString()));
+                      await Clipboard.setData(
+                        ClipboardData(text: buffer.toString()),
+                      );
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Markdown copied to clipboard!')),
+                        const SnackBar(
+                          content: Text('Markdown copied to clipboard!'),
+                        ),
                       );
                     },
                   ),
                   const Divider(),
                   ListTile(
                     title: const Text('Local Storage Path'),
-                    subtitle: const Text(kIsWeb ? 'Web Browser (In-Memory Only)' : 'Active on Native (Documents/tasks.md)'),
+                    subtitle: const Text(
+                      kIsWeb
+                          ? 'Web Browser (In-Memory Only)'
+                          : 'Active on Native (Documents/tasks.md)',
+                    ),
                     leading: const Icon(Icons.info_outline),
                   ),
                 ],

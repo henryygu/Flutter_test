@@ -85,8 +85,20 @@ class NodeManager extends ChangeNotifier {
   void updateNodeContent(OrgNode node, String newContent) {
     if (node.content != newContent) {
       node.content = newContent;
-      // We don't necessarily want to log every keystroke, maybe log on "done editing"
-      // For now, just notify
+      notifyListeners();
+    }
+  }
+
+  void updateNodeDescription(OrgNode node, String newDesc) {
+    if (node.description != newDesc) {
+      node.description = newDesc;
+      notifyListeners();
+    }
+  }
+
+  void addManualLog(OrgNode node, String message) {
+    if (message.isNotEmpty) {
+      node.addLog('Manual: $message');
       notifyListeners();
     }
   }

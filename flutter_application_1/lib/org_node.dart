@@ -23,6 +23,7 @@ class LogEntry {
 class OrgNode {
   String id;
   String content;
+  String description;
   String todoState;
   bool isExpanded;
   List<OrgNode> children;
@@ -41,6 +42,7 @@ class OrgNode {
   OrgNode({
     String? id,
     this.content = '',
+    this.description = '',
     this.todoState = 'TODO',
     this.isExpanded = true,
     List<OrgNode>? children,
@@ -84,6 +86,11 @@ class OrgNode {
       );
     if (deadline != null)
       buffer.writeln('DEADLINE: ${DateFormat('yyyy-MM-dd').format(deadline!)}');
+
+    // Description
+    if (description.isNotEmpty) {
+      buffer.writeln('DESC: $description');
+    }
 
     // Clocking logs (using a compact format)
     for (var log in clockLogs) {

@@ -145,6 +145,8 @@ class PersistenceManager {
           currentNode.deadline = _safeParseDate(
             trimmed.replaceFirst('DEADLINE:', '').trim(),
           );
+        } else if (trimmed.startsWith('DESC:')) {
+          currentNode.description = trimmed.replaceFirst('DESC:', '').trim();
         } else if (trimmed.startsWith('CLOCK:')) {
           // CLOCK: [2025-12-17 10:00]--[2025-12-17 10:05]
           final clockMatch = RegExp(

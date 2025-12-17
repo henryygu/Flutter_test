@@ -3,20 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'org_node.dart';
 import 'persistence_manager.dart';
-
-enum AgendaTimeRange { day, week, month, all }
-
-class AgendaFilter {
-  AgendaTimeRange timeRange;
-  Set<String> includedTags;
-  Set<String> includedStates;
-
-  AgendaFilter({
-    this.timeRange = AgendaTimeRange.day,
-    this.includedTags = const {},
-    this.includedStates = const {},
-  });
-}
+import 'agenda_models.dart';
 
 class NodeManager extends ChangeNotifier {
   final List<OrgNode> _rootNodes = [];
@@ -32,7 +19,11 @@ class NodeManager extends ChangeNotifier {
 
   List<String> _kanbanColumns = ['TODO', 'WAITING', 'STALLED', 'DONE'];
 
-  AgendaFilter _agendaFilter = AgendaFilter();
+  List<AgendaSection> _agendaSections = [
+    AgendaSection(id: '1', title: 'Overdue', dateFilter: DateFilter.overdue),
+    AgendaSection(id: '2', title: 'Due Today', dateFilter: DateFilter.today),
+    AgendaSection(id: '3', title: 'Quick Pending', states: {'TODO', 'WAITING'}),
+  ];
 
   NodeManager() {
     _loadFromDisk();
@@ -54,6 +45,9 @@ class NodeManager extends ChangeNotifier {
       if (data['kanban'] != null) {
         _kanbanColumns = List<String>.from(data['kanban']);
       }
+      if (data['sections'] != null) {
+        _agendaSections = List<AgendaSection>.from(data['sections']);
+      }
     } else {
       // First run or empty file
       _rootNodes.add(OrgNode(content: "Welcome to Flutter Org Mode"));
@@ -72,6 +66,7 @@ class NodeManager extends ChangeNotifier {
       _todoStates,
       _stateColors,
       _kanbanColumns,
+      _agendaSections,
     );
   }
 
@@ -79,7 +74,7 @@ class NodeManager extends ChangeNotifier {
   List<String> get todoStates => _todoStates;
   Map<String, Color> get stateColors => _stateColors;
   List<String> get kanbanColumns => _kanbanColumns;
-  AgendaFilter get agendaFilter => _agendaFilter;
+  List<AgendaSection> get agendaSections => _agendaSections;
 
   @override
   void notifyListeners() {
@@ -245,8 +240,8 @@ class NodeManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setAgendaFilter(AgendaFilter filter) {
-    _agendaFilter = filter;
+  void setAgendaSections(List<AgendaSection> sections) {
+    _agendaSections = sections;
     notifyListeners();
   }
 }

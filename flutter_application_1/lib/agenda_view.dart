@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'org_node.dart';
 import 'node_manager.dart';
 import 'org_node_widget.dart';
+import 'agenda_models.dart';
+import 'package:uuid/uuid.dart';
 
 class AgendaView extends StatelessWidget {
   final NodeManager manager;
@@ -10,55 +12,100 @@ class AgendaView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filter = manager.agendaFilter;
+    final sections = manager.agendaSections;
     final allNodes = _collectAllNodes(manager.rootNodes);
     final now = DateTime.now();
 
-    final filteredTasks = allNodes.where((n) {
-      // 1. Check Date Range
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: ListenableBuilder(
+        listenable: manager,
+        builder: (context, _) {
+          return ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildHeader(
+                    'Agenda Dashboard',
+                    Icons.dashboard_customize_outlined,
+                  ),
+                  IconButton.filledTonal(
+                    onPressed: () => _showSectionManager(context),
+                    tooltip: 'Manage Sections',
+                    icon: const Icon(Icons.settings),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              if (sections.isEmpty)
+                _buildEmptyState('No sections configured. Add one in settings!')
+              else
+                ...sections.map(
+                  (s) => _buildSection(context, s, allNodes, now),
+                ),
+              const SizedBox(height: 100),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSection(
+    BuildContext context,
+    AgendaSection section,
+    List<OrgNode> allNodes,
+    DateTime now,
+  ) {
+    final filtered = allNodes.where((n) {
+      // 1. Date Filter
       bool dateMatch = false;
       final targetDate = n.deadline ?? n.scheduled;
 
-      if (filter.timeRange == AgendaTimeRange.all) {
-        dateMatch = true;
-      } else if (targetDate == null) {
-        dateMatch = false;
-      } else {
-        switch (filter.timeRange) {
-          case AgendaTimeRange.day:
-            dateMatch = isSameDay(targetDate, now);
-            break;
-          case AgendaTimeRange.week:
-            final nextWeek = now.add(const Duration(days: 7));
-            dateMatch =
-                targetDate.isAfter(now.subtract(const Duration(days: 1))) &&
-                targetDate.isBefore(nextWeek);
-            break;
-          case AgendaTimeRange.month:
-            dateMatch =
-                targetDate.month == now.month && targetDate.year == now.year;
-            break;
-          case AgendaTimeRange.all:
-            dateMatch = true;
-            break;
-        }
+      switch (section.dateFilter) {
+        case DateFilter.overdue:
+          dateMatch =
+              targetDate != null &&
+              targetDate.isBefore(DateTime(now.year, now.month, now.day));
+          break;
+        case DateFilter.today:
+          dateMatch = targetDate != null && isSameDay(targetDate, now);
+          break;
+        case DateFilter.week:
+          if (targetDate == null) break;
+          final nextWeek = now.add(const Duration(days: 7));
+          dateMatch =
+              targetDate.isAfter(now.subtract(const Duration(days: 1))) &&
+              targetDate.isBefore(nextWeek);
+          break;
+        case DateFilter.month:
+          dateMatch =
+              targetDate != null &&
+              targetDate.month == now.month &&
+              targetDate.year == now.year;
+          break;
+        case DateFilter.none:
+          dateMatch = true;
+          break;
       }
 
-      // 2. Check Tags
+      // 2. Tag Filter
       bool tagMatch =
-          filter.includedTags.isEmpty ||
-          n.tags.any((t) => filter.includedTags.contains(t));
+          section.tags.isEmpty || n.tags.any((t) => section.tags.contains(t));
 
-      // 3. Check States
+      // 3. State Filter
       bool stateMatch =
-          filter.includedStates.isEmpty ||
-          filter.includedStates.contains(n.todoState);
+          section.states.isEmpty || section.states.contains(n.todoState);
 
       return dateMatch && tagMatch && stateMatch;
     }).toList();
 
-    // Sort: Deadlines first, then Scheduled
-    filteredTasks.sort((a, b) {
+    if (filtered.isEmpty) return const SizedBox();
+
+    // Sort: Deadlines first
+    filtered.sort((a, b) {
       final da = a.deadline ?? a.scheduled;
       final db = b.deadline ?? b.scheduled;
       if (da == null && db == null) return 0;
@@ -67,59 +114,25 @@ class AgendaView extends StatelessWidget {
       return da.compareTo(db);
     });
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildHeader(
-                _getFilterLabel(filter.timeRange),
-                Icons.calendar_today,
-              ),
-              IconButton.filledTonal(
-                onPressed: () => _showFilterSettings(context),
-                icon: const Icon(Icons.filter_list),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(section.title, Icons.label_important_outline),
+        const SizedBox(height: 12),
+        ...filtered.map(
+          (n) => OrgNodeWidget(
+            node: n,
+            manager: manager,
+            showChildren: false,
+            showIndentation: false,
           ),
-          const SizedBox(height: 16),
-          if (filteredTasks.isEmpty)
-            _buildEmptyState('No tasks matching your filters.')
-          else
-            ...filteredTasks.map(
-              (n) => OrgNodeWidget(
-                node: n,
-                manager: manager,
-                showChildren: false,
-                showIndentation: false,
-              ),
-            ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 32),
+      ],
     );
   }
 
-  String _getFilterLabel(AgendaTimeRange range) {
-    switch (range) {
-      case AgendaTimeRange.day:
-        return 'Today';
-      case AgendaTimeRange.week:
-        return 'This Week';
-      case AgendaTimeRange.month:
-        return 'This Month';
-      case AgendaTimeRange.all:
-        return 'All Tasks';
-    }
-  }
-
-  void _showFilterSettings(BuildContext context) {
-    final allTags = _collectAllNodes(
-      manager.rootNodes,
-    ).expand((n) => n.tags).toSet().toList();
-
+  void _showSectionManager(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -128,109 +141,231 @@ class AgendaView extends StatelessWidget {
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
-          final filter = manager.agendaFilter;
+          final sections = manager.agendaSections;
           return Container(
+            height: MediaQuery.of(context).size.height * 0.8,
             padding: const EdgeInsets.all(24),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Agenda Filters',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Manage Sections',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.add_circle_outline,
+                        color: Colors.blue,
+                      ),
+                      onPressed: () => _showEditSectionDialog(context, null),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
-
-                const Text(
-                  'TIME RANGE',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ReorderableListView(
+                    onReorder: (oldIndex, newIndex) {
+                      if (newIndex > oldIndex) newIndex -= 1;
+                      final list = List<AgendaSection>.from(sections);
+                      final item = list.removeAt(oldIndex);
+                      list.insert(newIndex, item);
+                      manager.setAgendaSections(list);
+                      setModalState(() {});
+                    },
+                    children: sections
+                        .map(
+                          (s) => ListTile(
+                            key: ValueKey(s.id),
+                            leading: const Icon(Icons.drag_handle),
+                            title: Text(s.title),
+                            subtitle: Text(
+                              '${s.dateFilter.name} | ${s.tags.length} tags | ${s.states.length} states',
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 20),
+                                  onPressed: () =>
+                                      _showEditSectionDialog(context, s),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    size: 20,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () {
+                                    final list = List<AgendaSection>.from(
+                                      sections,
+                                    );
+                                    list.remove(s);
+                                    manager.setAgendaSections(list);
+                                    setModalState(() {});
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
-                Wrap(
-                  spacing: 8,
-                  children: AgendaTimeRange.values.map((range) {
-                    final selected = filter.timeRange == range;
-                    return ChoiceChip(
-                      label: Text(_getFilterLabel(range)),
-                      selected: selected,
-                      onSelected: (val) {
-                        if (val) {
-                          filter.timeRange = range;
-                          manager.setAgendaFilter(filter);
-                          setModalState(() {});
-                        }
-                      },
-                    );
-                  }).toList(),
-                ),
-
-                const SizedBox(height: 24),
-                const Text(
-                  'TAGS',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                if (allTags.isEmpty)
-                  const Text(
-                    'No tags found',
-                    style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-                  )
-                else
-                  Wrap(
-                    spacing: 8,
-                    children: allTags.map((tag) {
-                      final selected = filter.includedTags.contains(tag);
-                      return FilterChip(
-                        label: Text('#$tag'),
-                        selected: selected,
-                        onSelected: (val) {
-                          val
-                              ? filter.includedTags.add(tag)
-                              : filter.includedTags.remove(tag);
-                          manager.setAgendaFilter(filter);
-                          setModalState(() {});
-                        },
-                      );
-                    }).toList(),
-                  ),
-
-                const SizedBox(height: 24),
-                const Text(
-                  'STATES',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                Wrap(
-                  spacing: 8,
-                  children: manager.todoStates.map((state) {
-                    final selected = filter.includedStates.contains(state);
-                    return FilterChip(
-                      label: Text(state),
-                      selected: selected,
-                      onSelected: (val) {
-                        val
-                            ? filter.includedStates.add(state)
-                            : filter.includedStates.remove(state);
-                        manager.setAgendaFilter(filter);
-                        setModalState(() {});
-                      },
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 32),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showEditSectionDialog(BuildContext context, AgendaSection? existing) {
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    DateFilter selectedDateFilter = existing?.dateFilter ?? DateFilter.none;
+    Set<String> selectedTags = Set<String>.from(existing?.tags ?? {});
+    Set<String> selectedStates = Set<String>.from(existing?.states ?? {});
+
+    final allTags = _collectAllNodes(
+      manager.rootNodes,
+    ).expand((n) => n.tags).toSet().toList();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(existing == null ? 'Add Section' : 'Edit Section'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Section Title',
+                    hintText: 'e.g. Overdue Tasks',
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'DATE FILTER',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                DropdownButton<DateFilter>(
+                  isExpanded: true,
+                  value: selectedDateFilter,
+                  items: DateFilter.values
+                      .map(
+                        (f) => DropdownMenuItem(
+                          value: f,
+                          child: Text(f.name.toUpperCase()),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (val) =>
+                      setDialogState(() => selectedDateFilter = val!),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'TAGS (ANY OF)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                Wrap(
+                  spacing: 4,
+                  children: allTags
+                      .map(
+                        (tag) => FilterChip(
+                          label: Text(
+                            '#$tag',
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                          selected: selectedTags.contains(tag),
+                          onSelected: (val) => setDialogState(
+                            () => val
+                                ? selectedTags.add(tag)
+                                : selectedTags.remove(tag),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'STATES (ANY OF)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                Wrap(
+                  spacing: 4,
+                  children: manager.todoStates
+                      .map(
+                        (state) => FilterChip(
+                          label: Text(
+                            state,
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                          selected: selectedStates.contains(state),
+                          onSelected: (val) => setDialogState(
+                            () => val
+                                ? selectedStates.add(state)
+                                : selectedStates.remove(state),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (titleController.text.isEmpty) return;
+                final newSections = List<AgendaSection>.from(
+                  manager.agendaSections,
+                );
+                final newSect = AgendaSection(
+                  id: existing?.id ?? const Uuid().v4(),
+                  title: titleController.text,
+                  dateFilter: selectedDateFilter,
+                  tags: selectedTags,
+                  states: selectedStates,
+                );
+                if (existing != null) {
+                  final idx = newSections.indexWhere(
+                    (s) => s.id == existing.id,
+                  );
+                  newSections[idx] = newSect;
+                } else {
+                  newSections.add(newSect);
+                }
+                manager.setAgendaSections(newSections);
+                Navigator.pop(context);
+              },
+              child: Text(existing == null ? 'Add' : 'Save'),
+            ),
+          ],
+        ),
       ),
     );
   }

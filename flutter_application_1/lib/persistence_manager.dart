@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'org_node.dart';
 import 'package:intl/intl.dart';
+import 'agenda_models.dart';
 
 class PersistenceManager {
   static const String fileName = 'tasks.md';
@@ -23,6 +24,7 @@ class PersistenceManager {
     List<String> states,
     Map<String, Color> colors,
     List<String> kanbanColumns,
+    List<AgendaSection> sections,
   ) async {
     if (kIsWeb) return;
 
@@ -37,6 +39,8 @@ class PersistenceManager {
         .join(',');
     buffer.writeln('COLORS: $colorStrings');
     buffer.writeln('KANBAN: ${kanbanColumns.join(',')}');
+    final sectionStrings = sections.map((s) => s.serialize()).join(';');
+    buffer.writeln('SECTIONS: $sectionStrings');
     buffer.writeln();
 
     for (var node in nodes) {
@@ -66,6 +70,8 @@ class PersistenceManager {
     List<OrgNode> nodes = [];
     List<String>? states;
     Map<String, Color>? colors;
+    List<String>? kanban;
+    List<AgendaSection>? sections;
 
     final lines = markdown.split('\n');
 
@@ -93,21 +99,25 @@ class PersistenceManager {
             }
           }
         } else if (line.startsWith('KANBAN:')) {
-          // Handled elsewhere or we can put it in return
-          final cols = line.replaceFirst('KANBAN:', '').trim().split(',');
-          // We'll return it in the map
-          return {
-            'nodes': parseMarkdown(lines.sublist(startLine).join('\n')),
-            'states': states,
-            'colors': colors,
-            'kanban': cols,
-          };
+          kanban = line.replaceFirst('KANBAN:', '').trim().split(',');
+        } else if (line.startsWith('SECTIONS:')) {
+          final sectData = line.replaceFirst('SECTIONS:', '').trim().split(';');
+          sections = sectData
+              .where((s) => s.isNotEmpty)
+              .map((s) => AgendaSection.deserialize(s))
+              .toList();
         }
       }
     }
 
     nodes = parseMarkdown(lines.sublist(startLine).join('\n'));
-    return {'nodes': nodes, 'states': states, 'colors': colors};
+    return {
+      'nodes': nodes,
+      'states': states,
+      'colors': colors,
+      'kanban': kanban,
+      'sections': sections,
+    };
   }
 
   // A more robust parser for the specific format we generated

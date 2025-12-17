@@ -17,11 +17,22 @@ class TaskDetailView extends StatefulWidget {
 class _TaskDetailViewState extends State<TaskDetailView> {
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _commentController = TextEditingController();
+  final TextEditingController _propKeyController = TextEditingController();
+  final TextEditingController _propValController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _descController.text = widget.node.description;
+  }
+
+  @override
+  void dispose() {
+    _descController.dispose();
+    _commentController.dispose();
+    _propKeyController.dispose();
+    _propValController.dispose();
+    super.dispose();
   }
 
   @override
@@ -122,6 +133,11 @@ class _TaskDetailViewState extends State<TaskDetailView> {
 
               const Divider(height: 48),
 
+              // Properties Section
+              _buildPropertiesSection(context),
+
+              const Divider(height: 48),
+
               // Comments Section
               _buildSectionTitle('COMMENTS & LOGS', Icons.forum_outlined),
               const SizedBox(height: 12),
@@ -185,8 +201,11 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                 )
               else
                 ...widget.node.children.map(
-                  (child) =>
-                      OrgNodeWidget(node: child, manager: widget.manager),
+                  (child) => OrgNodeWidget(
+                    node: child,
+                    manager: widget.manager,
+                    depth: 0,
+                  ),
                 ),
 
               const SizedBox(height: 80), // Space for FAB
@@ -212,26 +231,81 @@ class _TaskDetailViewState extends State<TaskDetailView> {
           value: DateFormat('MMM dd, yyyy').format(widget.node.created),
           icon: Icons.calendar_today,
         ),
-        if (widget.node.scheduled != null)
-          _MetadataItem(
-            label: 'Scheduled',
-            value: DateFormat('MMM dd').format(widget.node.scheduled!),
-            icon: Icons.event,
-            color: Colors.green,
-          ),
-        if (widget.node.deadline != null)
-          _MetadataItem(
-            label: 'Deadline',
-            value: DateFormat('MMM dd').format(widget.node.deadline!),
-            icon: Icons.notification_important,
-            color: Colors.red,
-          ),
+        _MetadataItem(
+          label: 'Scheduled',
+          value: widget.node.scheduled == null
+              ? 'Set Date'
+              : DateFormat('MMM dd').format(widget.node.scheduled!),
+          icon: Icons.event,
+          color: widget.node.scheduled != null ? Colors.green : Colors.grey,
+          onTap: () => _pickDate(context, isDeadline: false),
+        ),
+        _MetadataItem(
+          label: 'Deadline',
+          value: widget.node.deadline == null
+              ? 'Set Date'
+              : DateFormat('MMM dd').format(widget.node.deadline!),
+          icon: Icons.notification_important,
+          color: widget.node.deadline != null ? Colors.red : Colors.grey,
+          onTap: () => _pickDate(context, isDeadline: true),
+        ),
         _MetadataItem(
           label: 'Total Time',
           value: _formatDuration(widget.node.totalTimeSpent),
           icon: Icons.timer_outlined,
           color: Colors.blueGrey,
         ),
+      ],
+    );
+  }
+
+  Widget _buildPropertiesSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionTitle('CUSTOM PROPERTIES', Icons.settings_outlined),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () => _showAddPropertyDialog(context),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (widget.node.properties.isEmpty)
+          const Text(
+            'No custom metadata defined.',
+            style: TextStyle(
+              fontStyle: FontStyle.italic,
+              fontSize: 13,
+              color: Colors.grey,
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.node.properties.entries
+                .map(
+                  (e) => Chip(
+                    label: Text(
+                      '${e.key}: ${e.value}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onDeleted: () =>
+                        widget.manager.removeProperty(widget.node, e.key),
+                    deleteIcon: const Icon(Icons.close, size: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
       ],
     );
   }
@@ -377,6 +451,69 @@ class _TaskDetailViewState extends State<TaskDetailView> {
     );
   }
 
+  void _pickDate(BuildContext context, {required bool isDeadline}) async {
+    final initialDate =
+        (isDeadline ? widget.node.deadline : widget.node.scheduled) ??
+        DateTime.now();
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      helpText: isDeadline ? 'SET DEADLINE' : 'SCHEDULE TASK',
+    );
+    if (picked != null) {
+      if (isDeadline) {
+        widget.manager.setDeadline(widget.node, picked);
+      } else {
+        widget.manager.setScheduled(widget.node, picked);
+      }
+    }
+  }
+
+  void _showAddPropertyDialog(BuildContext context) {
+    _propKeyController.clear();
+    _propValController.clear();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Property'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _propKeyController,
+              decoration: const InputDecoration(
+                hintText: 'Key (e.g. PRIORITY)',
+              ),
+            ),
+            TextField(
+              controller: _propValController,
+              decoration: const InputDecoration(hintText: 'Value (e.g. HIGH)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              widget.manager.setProperty(
+                widget.node,
+                _propKeyController.text,
+                _propValController.text,
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatDuration(Duration d) {
     if (d.inHours > 0) return "${d.inHours}h ${d.inMinutes.remainder(60)}m";
     return "${d.inMinutes}m ${d.inSeconds.remainder(60)}s";
@@ -388,44 +525,53 @@ class _MetadataItem extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color? color;
+  final VoidCallback? onTap;
 
   const _MetadataItem({
     required this.label,
     required this.value,
     required this.icon,
     this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w800,
-            color: Colors.grey,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Row(
-          mainAxisSize: MainAxisSize.min,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 14, color: color ?? Colors.blueGrey),
-            const SizedBox(width: 8),
             Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: color ?? Colors.blueGrey,
+              label.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: Colors.grey,
+                letterSpacing: 0.5,
               ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 14, color: color ?? Colors.blueGrey),
+                const SizedBox(width: 8),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: color ?? Colors.blueGrey,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }

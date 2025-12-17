@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'org_node.dart';
 import 'persistence_manager.dart';
 
@@ -99,6 +100,40 @@ class NodeManager extends ChangeNotifier {
   void addManualLog(OrgNode node, String message) {
     if (message.isNotEmpty) {
       node.addLog('Manual: $message');
+      notifyListeners();
+    }
+  }
+
+  void setScheduled(OrgNode node, DateTime? date) {
+    node.scheduled = date;
+    node.addLog(
+      date == null
+          ? 'Removed scheduled date'
+          : 'Scheduled for ${DateFormat('yyyy-MM-dd').format(date)}',
+    );
+    notifyListeners();
+  }
+
+  void setDeadline(OrgNode node, DateTime? date) {
+    node.deadline = date;
+    node.addLog(
+      date == null
+          ? 'Removed deadline'
+          : 'Deadline set for ${DateFormat('yyyy-MM-dd').format(date)}',
+    );
+    notifyListeners();
+  }
+
+  void setProperty(OrgNode node, String key, String value) {
+    if (key.isNotEmpty) {
+      node.properties[key] = value;
+      notifyListeners();
+    }
+  }
+
+  void removeProperty(OrgNode node, String key) {
+    if (node.properties.containsKey(key)) {
+      node.properties.remove(key);
       notifyListeners();
     }
   }

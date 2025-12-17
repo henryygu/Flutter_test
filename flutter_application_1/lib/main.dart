@@ -4,6 +4,7 @@ import 'node_manager.dart';
 import 'org_node_widget.dart';
 import 'agenda_view.dart';
 import 'options_view.dart';
+import 'kanban_view.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -106,6 +107,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 label: 'Agenda',
               ),
               NavigationDestination(
+                icon: Icon(Icons.view_kanban),
+                label: 'Kanban',
+              ),
+              NavigationDestination(
                 icon: Icon(Icons.settings),
                 label: 'Options',
               ),
@@ -126,6 +131,8 @@ class _HomeScreenState extends State<HomeScreen> {
       case 1:
         return 'Agenda View';
       case 2:
+        return 'Kanban Board';
+      case 3:
         return 'Settings';
       default:
         return 'Org Mode';
@@ -139,6 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
       case 1:
         return AgendaView(manager: _manager);
       case 2:
+        return KanbanView(manager: _manager);
+      case 3:
         return OptionsView(manager: _manager);
       default:
         return const SizedBox();

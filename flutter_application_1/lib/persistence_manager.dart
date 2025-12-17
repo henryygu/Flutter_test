@@ -147,6 +147,16 @@ class PersistenceManager {
           );
         } else if (trimmed.startsWith('DESC:')) {
           currentNode.description = trimmed.replaceFirst('DESC:', '').trim();
+        } else if (trimmed.startsWith(':') && trimmed.endsWith(':')) {
+          // Entry into or exit from properties
+        } else if (trimmed.startsWith(':') && trimmed.contains(' ')) {
+          // Property: :KEY: VALUE
+          final parts = trimmed.substring(1).split(':');
+          if (parts.length >= 2) {
+            final key = parts[0].trim();
+            final value = parts.sublist(1).join(':').trim();
+            currentNode.properties[key] = value;
+          }
         } else if (trimmed.startsWith('CLOCK:')) {
           // CLOCK: [2025-12-17 10:00]--[2025-12-17 10:05]
           final clockMatch = RegExp(

@@ -8,12 +8,16 @@ class OrgNodeWidget extends StatelessWidget {
   final OrgNode node;
   final NodeManager manager;
   final int depth;
+  final bool showChildren;
+  final bool showIndentation;
 
   const OrgNodeWidget({
     super.key,
     required this.node,
     required this.manager,
     this.depth = 0,
+    this.showChildren = true,
+    this.showIndentation = true,
   });
 
   @override
@@ -29,10 +33,10 @@ class OrgNodeWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Indentation
-              if (!isRoot) SizedBox(width: depth * 12.0),
+              if (!isRoot && showIndentation) SizedBox(width: depth * 12.0),
 
               // Expand/Collapse Icon
-              if (node.children.isNotEmpty)
+              if (node.children.isNotEmpty && showChildren)
                 IconButton(
                   icon: Icon(
                     node.isExpanded
@@ -141,6 +145,15 @@ class OrgNodeWidget extends StatelessWidget {
                         : Colors.grey.withOpacity(0.5),
                   ),
                   _ActionButton(
+                    icon: Icons.calendar_month,
+                    onPressed: () => _showDatePickerMenu(context),
+                    color: (node.scheduled != null || node.deadline != null)
+                        ? Colors.green
+                        : Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.6),
+                  ),
+                  _ActionButton(
                     icon: Icons.add_circle_outline,
                     onPressed: () => manager.addChild(node, ''),
                     color: Theme.of(
@@ -169,39 +182,67 @@ class OrgNodeWidget extends StatelessWidget {
                     _MetadataTag(
                       label: 'SCH: ${_formatDate(node.scheduled!)}',
                       color: Colors.green,
+                      onTap: () => _pickDate(context, isDeadline: false),
                     ),
                   if (node.deadline != null)
                     _MetadataTag(
                       label: 'DL: ${_formatDate(node.deadline!)}',
                       color: Colors.red,
+                      onTap: () => _pickDate(context, isDeadline: true),
                     ),
                   if (node.clockLogs.isNotEmpty)
                     _MetadataTag(
                       label: '🕒 ${_formatDuration(node.totalTimeSpent)}',
                       color: Colors.blueGrey,
                     ),
+                  ...node.properties.entries.map(
+                    (e) => _MetadataTag(
+                      label: '${e.key}: ${e.value}',
+                      color: Colors.purple,
+                    ),
+                  ),
                 ],
+              ),
+            ),
+          if (node.description.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(left: (depth * 12.0) + 64, bottom: 8),
+              child: Text(
+                node.description,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ),
         ],
       ),
     );
 
-    if (isRoot) {
+    if (isRoot && showIndentation) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 12.0),
         child: Card(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
-              children: [content, if (node.isExpanded) ..._buildChildren()],
+              children: [
+                content,
+                if (node.isExpanded && showChildren) ..._buildChildren(),
+              ],
             ),
           ),
         ),
       );
     } else {
       return Column(
-        children: [content, if (node.isExpanded) ..._buildChildren()],
+        children: [
+          content,
+          if (node.isExpanded && showChildren) ..._buildChildren(),
+        ],
       );
     }
   }
@@ -282,6 +323,77 @@ class OrgNodeWidget extends StatelessWidget {
     );
   }
 
+  void _showDatePickerMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.event, color: Colors.green),
+              title: const Text('Schedule Task'),
+              subtitle: Text(
+                node.scheduled == null
+                    ? 'Not scheduled'
+                    : DateFormat('MMM dd, yyyy').format(node.scheduled!),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickDate(context, isDeadline: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.notification_important,
+                color: Colors.red,
+              ),
+              title: const Text('Set Deadline'),
+              subtitle: Text(
+                node.deadline == null
+                    ? 'No deadline'
+                    : DateFormat('MMM dd, yyyy').format(node.deadline!),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickDate(context, isDeadline: true);
+              },
+            ),
+            if (node.scheduled != null || node.deadline != null)
+              ListTile(
+                leading: const Icon(Icons.calendar_today_outlined),
+                title: const Text('Clear Dates'),
+                onTap: () {
+                  manager.setScheduled(node, null);
+                  manager.setDeadline(node, null);
+                  Navigator.pop(context);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _pickDate(BuildContext context, {required bool isDeadline}) async {
+    final initialDate =
+        (isDeadline ? node.deadline : node.scheduled) ?? DateTime.now();
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      helpText: isDeadline ? 'SET DEADLINE' : 'SCHEDULE TASK',
+    );
+    if (picked != null) {
+      if (isDeadline) {
+        manager.setDeadline(node, picked);
+      } else {
+        manager.setScheduled(node, picked);
+      }
+    }
+  }
+
   Color _getStateColor(String state) => manager.getColorForState(state);
 
   String _formatDate(DateTime dt) => DateFormat('MMM dd').format(dt);
@@ -318,23 +430,27 @@ class _ActionButton extends StatelessWidget {
 class _MetadataTag extends StatelessWidget {
   final String label;
   final Color color;
+  final VoidCallback? onTap;
 
-  const _MetadataTag({required this.label, required this.color});
+  const _MetadataTag({required this.label, required this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          color: color,
-          fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

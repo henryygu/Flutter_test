@@ -39,6 +39,10 @@ class OrgNode {
   // History/Change Log
   List<LogEntry> history;
 
+  // Custom Metadata
+  Map<String, String> properties;
+  List<String> tags;
+
   OrgNode({
     String? id,
     this.content = '',
@@ -51,11 +55,14 @@ class OrgNode {
     this.deadline,
     List<TimeLog>? clockLogs,
     List<LogEntry>? history,
+    Map<String, String>? properties,
   }) : id = id ?? const Uuid().v4(),
        children = children ?? [],
        created = created ?? DateTime.now(),
        clockLogs = clockLogs ?? [],
-       history = history ?? [];
+       history = history ?? [],
+       properties = properties ?? {},
+       tags = tags ?? [];
 
   void addLog(String message) {
     history.add(LogEntry(timestamp: DateTime.now(), message: message));
@@ -76,8 +83,9 @@ class OrgNode {
     final buffer = StringBuffer();
     final hashes = '#' * depth;
 
-    // Header: # STATE Content
-    buffer.writeln('$hashes $todoState $content');
+    // Header: # STATE Content :tag1:tag2:
+    final tagsString = tags.isEmpty ? '' : ' :${tags.join(':')}:';
+    buffer.writeln('$hashes $todoState $content$tagsString');
 
     // Timestamps
     if (scheduled != null)
@@ -87,9 +95,17 @@ class OrgNode {
     if (deadline != null)
       buffer.writeln('DEADLINE: ${DateFormat('yyyy-MM-dd').format(deadline!)}');
 
-    // Description
     if (description.isNotEmpty) {
       buffer.writeln('DESC: $description');
+    }
+
+    // Properties
+    if (properties.isNotEmpty) {
+      buffer.writeln(':PROPERTIES:');
+      properties.forEach((key, value) {
+        buffer.writeln(':$key: $value');
+      });
+      buffer.writeln(':END:');
     }
 
     // Clocking logs (using a compact format)

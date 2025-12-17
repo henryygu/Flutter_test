@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'node_manager.dart';
+import 'property_models.dart';
 
 class OptionsView extends StatefulWidget {
   final NodeManager manager;
@@ -18,7 +19,8 @@ class _OptionsViewState extends State<OptionsView> {
   late Map<String, Color> _localColors;
   late Set<String> _localDoneStates;
   late List<String> _localTags;
-  late List<String> _localPropKeys;
+  late List<PropertyDefinition> _localPropDefs;
+
   final TextEditingController _newStateController = TextEditingController();
   final TextEditingController _newTagController = TextEditingController();
   final TextEditingController _newPropKeyController = TextEditingController();
@@ -30,7 +32,7 @@ class _OptionsViewState extends State<OptionsView> {
     _localColors = Map.from(widget.manager.stateColors);
     _localDoneStates = Set.from(widget.manager.doneStates);
     _localTags = List.from(widget.manager.allTags);
-    _localPropKeys = List.from(widget.manager.allPropertyKeys);
+    _localPropDefs = List.from(widget.manager.propertyDefinitions);
   }
 
   @override
@@ -45,7 +47,7 @@ class _OptionsViewState extends State<OptionsView> {
     widget.manager.setTodoStates(_localStates, _localColors);
     widget.manager.setDoneStates(_localDoneStates);
     widget.manager.setAllTags(_localTags);
-    widget.manager.setAllPropertyKeys(_localPropKeys);
+    widget.manager.setAllPropertyKeys(_localPropDefs);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Preferences saved successfully'),
@@ -104,14 +106,9 @@ class _OptionsViewState extends State<OptionsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionHeader('Workflow States', Icons.sync_alt),
-            const SizedBox(height: 8),
-            const Text(
-              'Define the lifecycle of your tasks. Drag to reorder, or tap the circle to change the signature color.',
-              style: TextStyle(fontSize: 13, color: Colors.blueGrey),
-            ),
             const SizedBox(height: 24),
             Container(
-              height: 350,
+              height: 300,
               decoration: BoxDecoration(
                 color: Theme.of(
                   context,
@@ -142,16 +139,6 @@ class _OptionsViewState extends State<OptionsView> {
                               color:
                                   _localColors[_localStates[i]] ?? Colors.grey,
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      (_localColors[_localStates[i]] ??
-                                              Colors.grey)
-                                          .withValues(alpha: 0.4),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
                             ),
                             child: const Icon(
                               Icons.palette,
@@ -162,10 +149,7 @@ class _OptionsViewState extends State<OptionsView> {
                         ),
                         title: Text(
                           _localStates[i],
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -189,50 +173,28 @@ class _OptionsViewState extends State<OptionsView> {
                                 },
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Done Category',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey,
-                              ),
-                            ),
+                            const Text('Done', style: TextStyle(fontSize: 10)),
                           ],
                         ),
-                        trailing: const Icon(
-                          Icons.drag_handle,
-                          color: Colors.grey,
-                        ),
+                        trailing: const Icon(Icons.drag_handle, size: 20),
                       ),
                     ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            _buildSectionHeader('Add State', Icons.add),
-            const SizedBox(height: 8),
             TextField(
               controller: _newStateController,
               decoration: InputDecoration(
-                hintText: 'e.g., DEFERRED',
-                filled: true,
-                fillColor: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
+                hintText: 'New state...',
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.add_circle),
+                  icon: const Icon(Icons.add),
                   onPressed: () {
-                    if (_newStateController.text.isNotEmpty) {
-                      final name = _newStateController.text.toUpperCase();
+                    final val = _newStateController.text.toUpperCase().trim();
+                    if (val.isNotEmpty && !_localStates.contains(val)) {
                       setState(() {
-                        if (!_localStates.contains(name)) {
-                          _localStates.add(name);
-                          _localColors[name] = Colors.blue;
-                        }
+                        _localStates.add(val);
+                        _localColors[val] = Colors.blue;
                         _newStateController.clear();
                       });
                     }
@@ -242,7 +204,6 @@ class _OptionsViewState extends State<OptionsView> {
             ),
             const SizedBox(height: 32),
 
-            // Tag Management
             _buildSectionHeader('Global Tags', Icons.local_offer),
             const SizedBox(height: 16),
             Wrap(
@@ -260,93 +221,71 @@ class _OptionsViewState extends State<OptionsView> {
                 ActionChip(
                   avatar: const Icon(Icons.add, size: 16),
                   label: const Text('Add Tag'),
-                  onPressed: () => _showAddDialog(
-                    'Add Global Tag',
-                    _newTagController,
-                    (val) {
-                      if (!_localTags.contains(val)) _localTags.add(val);
-                    },
-                  ),
+                  onPressed: () => _showAddTagDialog(),
                 ),
               ],
             ),
             const SizedBox(height: 32),
 
-            // Property Key Management
-            _buildSectionHeader('Property Keys', Icons.list_alt),
+            _buildSectionHeader('Property Definitions', Icons.list_alt),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ..._localPropKeys.map(
-                  (key) => Chip(
-                    label: Text(key),
-                    onDeleted: () {
-                      setState(() => _localPropKeys.remove(key));
-                    },
-                  ),
-                ),
-                ActionChip(
-                  avatar: const Icon(Icons.add, size: 16),
-                  label: const Text('Add Key'),
-                  onPressed: () => _showAddDialog(
-                    'Add Meta Key',
-                    _newPropKeyController,
-                    (val) {
-                      val = val.toUpperCase();
-                      if (!_localPropKeys.contains(val))
-                        _localPropKeys.add(val);
-                    },
-                  ),
-                ),
-              ],
+            ..._localPropDefs.map((def) => _buildPropDefItem(def)),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _showAddPropDefDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Property Definition'),
             ),
-            const SizedBox(height: 32),
 
-            _buildSectionHeader('Data & Storage', Icons.storage),
+            const SizedBox(height: 32),
+            _buildSectionHeader('Data', Icons.storage),
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            ListTile(
+              title: const Text('Export Markdown'),
+              trailing: const Icon(Icons.copy),
+              tileColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Column(
-                children: [
-                  ListTile(
-                    title: const Text('Export to Markdown'),
-                    subtitle: const Text('Copy all tasks to clipboard'),
-                    trailing: const Icon(Icons.copy),
-                    onTap: () async {
-                      final buffer = StringBuffer();
-                      for (var node in widget.manager.rootNodes) {
-                        buffer.write(node.toMarkdown());
-                      }
-                      await Clipboard.setData(
-                        ClipboardData(text: buffer.toString()),
-                      );
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Markdown copied!')),
-                      );
-                    },
-                  ),
-                  const Divider(),
-                  ListTile(
-                    title: const Text('Local Storage Path'),
-                    subtitle: const Text(
-                      kIsWeb ? 'Web Browser' : 'Documents/tasks.md',
-                    ),
-                    leading: const Icon(Icons.info_outline),
-                  ),
-                ],
-              ),
+              onTap: () async {
+                final buffer = StringBuffer();
+                for (var node in widget.manager.rootNodes) {
+                  buffer.write(node.toMarkdown());
+                }
+                await Clipboard.setData(ClipboardData(text: buffer.toString()));
+                if (!mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Copied!')));
+              },
             ),
             const SizedBox(height: 100),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPropDefItem(PropertyDefinition def) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        title: Text(
+          def.key,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          'Type: ${def.type.name}${def.options.isNotEmpty ? " (${def.options.join(', ')})" : ""}',
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete, color: Colors.redAccent),
+          onPressed: () {
+            setState(() {
+              _localPropDefs.remove(def);
+            });
+          },
         ),
       ),
     );
@@ -359,34 +298,19 @@ class _OptionsViewState extends State<OptionsView> {
         const SizedBox(width: 12),
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.5,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
         ),
       ],
     );
   }
 
-  void _showAddDialog(
-    String title,
-    TextEditingController controller,
-    Function(String) onAdd,
-  ) {
-    controller.clear();
+  void _showAddTagDialog() {
+    _newTagController.clear();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          onSubmitted: (val) {
-            setState(() => onAdd(val.trim()));
-            Navigator.pop(context);
-          },
-        ),
+        title: const Text('Add Global Tag'),
+        content: TextField(controller: _newTagController, autofocus: true),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -394,12 +318,116 @@ class _OptionsViewState extends State<OptionsView> {
           ),
           ElevatedButton(
             onPressed: () {
-              setState(() => onAdd(controller.text.trim()));
-              Navigator.pop(context);
+              final val = _newTagController.text.trim();
+              if (val.isNotEmpty) {
+                setState(() => _localTags.add(val));
+                Navigator.pop(context);
+              }
             },
             child: const Text('Add'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAddPropDefDialog() {
+    _newPropKeyController.clear();
+    PropertyType selectedType = PropertyType.text;
+    List<String> options = [];
+    final optController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Property Definition'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _newPropKeyController,
+                  decoration: const InputDecoration(
+                    labelText: 'Property Key (e.g. COST)',
+                  ),
+                ),
+                DropdownButtonFormField<PropertyType>(
+                  value: selectedType,
+                  items: PropertyType.values
+                      .map(
+                        (t) => DropdownMenuItem(value: t, child: Text(t.name)),
+                      )
+                      .toList(),
+                  onChanged: (val) => setDialogState(() => selectedType = val!),
+                  decoration: const InputDecoration(labelText: 'Type'),
+                ),
+                if (selectedType == PropertyType.options) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: optController,
+                          decoration: const InputDecoration(
+                            labelText: 'New Option',
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () {
+                          if (optController.text.isNotEmpty) {
+                            setDialogState(() {
+                              options.add(optController.text.trim());
+                              optController.clear();
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  Wrap(
+                    spacing: 4,
+                    children: options
+                        .map(
+                          (o) => Chip(
+                            label: Text(o),
+                            onDeleted: () =>
+                                setDialogState(() => options.remove(o)),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final key = _newPropKeyController.text.toUpperCase().trim();
+                if (key.isNotEmpty) {
+                  setState(() {
+                    _localPropDefs.add(
+                      PropertyDefinition(
+                        key: key,
+                        type: selectedType,
+                        options: options,
+                      ),
+                    );
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
       ),
     );
   }

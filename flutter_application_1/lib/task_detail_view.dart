@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'org_node.dart';
 import 'node_manager.dart';
 import 'org_node_widget.dart';
+import 'property_models.dart';
 
 class TaskDetailView extends StatefulWidget {
   final OrgNode node;
@@ -40,17 +42,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Task Focus'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () {
-              // Future share functionality
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Task Focus')),
       body: ListenableBuilder(
         listenable: widget.manager,
         builder: (context, _) {
@@ -119,7 +111,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                 controller: _descController,
                 maxLines: null,
                 decoration: InputDecoration(
-                  hintText: 'Add a detailed description here...',
+                  hintText: 'Add a detailed description...',
                   filled: true,
                   fillColor: Theme.of(
                     context,
@@ -215,7 +207,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                   (entry) => _buildLogEntry(context, entry),
                 ),
 
-              const SizedBox(height: 80), // Space for FAB
+              const SizedBox(height: 80),
             ],
           );
         },
@@ -285,7 +277,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
         const SizedBox(height: 8),
         if (widget.node.properties.isEmpty)
           const Text(
-            'No custom metadata defined.',
+            'No custom metadata.',
             style: TextStyle(
               fontStyle: FontStyle.italic,
               fontSize: 13,
@@ -297,206 +289,41 @@ class _TaskDetailViewState extends State<TaskDetailView> {
             spacing: 8,
             runSpacing: 8,
             children: widget.node.properties.entries
-                .map(
-                  (e) => Chip(
-                    label: Text(
-                      '${e.key}: ${e.value}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    onDeleted: () =>
-                        widget.manager.removeProperty(widget.node, e.key),
-                    deleteIcon: const Icon(Icons.close, size: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                )
+                .map((e) => _buildPropertyChip(context, e.key, e.value))
                 .toList(),
           ),
       ],
     );
   }
 
-  Widget _buildLogEntry(BuildContext context, LogEntry entry) {
-    final isManual = entry.message.startsWith('Manual:');
-    final message = isManual
-        ? entry.message.replaceFirst('Manual:', '').trim()
-        : entry.message;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isManual
-              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: isManual
-              ? Border.all(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.1),
-                )
-              : null,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Column(
-              children: [
-                Text(
-                  DateFormat('HH:mm').format(entry.timestamp),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                    color: Colors.blueGrey,
-                  ),
-                ),
-                Text(
-                  DateFormat('MMM dd').format(entry.timestamp),
-                  style: const TextStyle(fontSize: 8, color: Colors.blueGrey),
-                ),
-              ],
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                message,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isManual ? FontWeight.w600 : FontWeight.normal,
-                  color: isManual
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ),
-          ],
-        ),
+  Widget _buildPropertyChip(BuildContext context, String key, String value) {
+    final def = widget.manager.propertyDefinitions.firstWhere(
+      (d) => d.key == key,
+      orElse: () => PropertyDefinition(key: key),
+    );
+    return InkWell(
+      onTap: () => _editPropertyValue(context, def, value),
+      child: Chip(
+        label: Text('$key: $value', style: const TextStyle(fontSize: 12)),
+        onDeleted: () => widget.manager.removeProperty(widget.node, key),
+        deleteIcon: const Icon(Icons.close, size: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: Colors.blueGrey),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
-            color: Colors.blueGrey,
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showStatePicker(BuildContext context) {
-    showModalBottomSheet(
+  void _editPropertyValue(
+    BuildContext context,
+    PropertyDefinition def,
+    String currentValue,
+  ) {
+    _propValController.text = currentValue;
+    showDialog(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Change Status',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: widget.manager.todoStates.map((state) {
-                    final color = widget.manager.getColorForState(state);
-                    final isSelected = widget.node.todoState == state;
-                    return InkWell(
-                      onTap: () {
-                        widget.manager.setNodeState(widget.node, state);
-                        Navigator.pop(context);
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? color
-                              : color.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? Colors.transparent
-                                : color.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          state,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : color,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (context) => _buildValueInputDialog(context, def, (newVal) {
+        widget.manager.setProperty(widget.node, def.key, newVal);
+      }),
     );
-  }
-
-  void _pickDate(BuildContext context, {required bool isDeadline}) async {
-    final initial =
-        (isDeadline ? widget.node.deadline : widget.node.scheduled) ??
-        DateTime.now();
-    final DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-      helpText: isDeadline ? 'SET DEADLINE' : 'SCHEDULE TASK',
-    );
-
-    if (pickedDate != null) {
-      if (!context.mounted) return;
-      await Future.delayed(const Duration(milliseconds: 100));
-      if (!context.mounted) return;
-      final TimeOfDay? pickedTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(initial),
-      );
-
-      final finalDateTime = DateTime(
-        pickedDate.year,
-        pickedDate.month,
-        pickedDate.day,
-        pickedTime?.hour ?? initial.hour,
-        pickedTime?.minute ?? initial.minute,
-      );
-
-      if (isDeadline) {
-        widget.manager.setDeadline(widget.node, finalDateTime);
-      } else {
-        widget.manager.setScheduled(widget.node, finalDateTime);
-      }
-    }
   }
 
   void _showAddPropertyDialog(BuildContext context) {
@@ -505,78 +332,199 @@ class _TaskDetailViewState extends State<TaskDetailView> {
     showDialog(
       context: context,
       builder: (context) {
-        final availableKeys = widget.manager.allPropertyKeys;
+        final availableDefs = widget.manager.propertyDefinitions;
+        PropertyDefinition? selectedDef;
         return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Add Property'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: _propKeyController,
-                    decoration: const InputDecoration(
-                      hintText: 'Key (e.g. PRIORITY)',
-                    ),
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Add Property'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _propKeyController,
+                  decoration: const InputDecoration(
+                    hintText: 'Key (e.g. COST)',
                   ),
-                  if (availableKeys.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Recently used:',
-                      style: TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 4,
-                      children: availableKeys.map((key) {
-                        return ChoiceChip(
-                          label: Text(
-                            key,
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                          selected: _propKeyController.text == key,
-                          onSelected: (selected) {
-                            if (selected) {
-                              setDialogState(() {
-                                _propKeyController.text = key;
-                              });
-                            }
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ],
+                  onChanged: (val) {
+                    setDialogState(() {
+                      selectedDef = availableDefs.firstWhere(
+                        (d) => d.key == val.toUpperCase().trim(),
+                        orElse: () =>
+                            PropertyDefinition(key: val.toUpperCase().trim()),
+                      );
+                    });
+                  },
+                ),
+                if (availableDefs.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: _propValController,
-                    decoration: const InputDecoration(
-                      hintText: 'Value (e.g. HIGH)',
-                    ),
+                  const Text(
+                    'Known Definitions:',
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    children: availableDefs
+                        .map(
+                          (def) => ChoiceChip(
+                            label: Text(
+                              def.key,
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            selected: selectedDef?.key == def.key,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setDialogState(() {
+                                  selectedDef = def;
+                                  _propKeyController.text = def.key;
+                                });
+                              }
+                            },
+                          ),
+                        )
+                        .toList(),
                   ),
                 ],
+                const SizedBox(height: 12),
+                if (selectedDef != null)
+                  _buildValueInput(
+                    context,
+                    selectedDef!,
+                    (val) => _propValController.text = val,
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
+              ElevatedButton(
+                onPressed: () {
+                  final key = _propKeyController.text.trim().toUpperCase();
+                  if (key.isNotEmpty) {
                     widget.manager.setProperty(
                       widget.node,
-                      _propKeyController.text.trim().toUpperCase(),
+                      key,
                       _propValController.text.trim(),
                     );
                     Navigator.pop(context);
-                  },
-                  child: const Text('Add'),
-                ),
-              ],
-            );
-          },
+                  }
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildValueInput(
+    BuildContext context,
+    PropertyDefinition def,
+    Function(String) onChanged,
+  ) {
+    switch (def.type) {
+      case PropertyType.boolean:
+        return StatefulBuilder(
+          builder: (context, setInnerState) => SwitchListTile(
+            title: const Text('Value', style: TextStyle(fontSize: 14)),
+            value: _propValController.text.toLowerCase() == 'true',
+            onChanged: (val) {
+              setInnerState(() => _propValController.text = val.toString());
+              onChanged(val.toString());
+            },
+          ),
+        );
+      case PropertyType.number:
+        return TextField(
+          decoration: const InputDecoration(labelText: 'Number Value'),
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+          ],
+          onChanged: onChanged,
+        );
+      case PropertyType.options:
+        return DropdownButtonFormField<String>(
+          items: def.options
+              .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+              .toList(),
+          onChanged: (val) {
+            if (val != null) {
+              _propValController.text = val;
+              onChanged(val);
+            }
+          },
+          decoration: const InputDecoration(labelText: 'Select Option'),
+        );
+      case PropertyType.text:
+      default:
+        return TextField(
+          decoration: const InputDecoration(labelText: 'Text Value'),
+          onChanged: onChanged,
+        );
+    }
+  }
+
+  Widget _buildValueInputDialog(
+    BuildContext context,
+    PropertyDefinition def,
+    Function(String) onSave,
+  ) {
+    String localVal = _propValController.text;
+    return AlertDialog(
+      title: Text('Edit ${def.key}'),
+      content: StatefulBuilder(
+        builder: (context, setDialogState) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (def.type == PropertyType.boolean)
+              SwitchListTile(
+                title: const Text('Value'),
+                value: localVal.toLowerCase() == 'true',
+                onChanged: (val) =>
+                    setDialogState(() => localVal = val.toString()),
+              )
+            else if (def.type == PropertyType.number)
+              TextField(
+                controller: TextEditingController(text: localVal),
+                decoration: const InputDecoration(labelText: 'Number'),
+                keyboardType: TextInputType.number,
+                onChanged: (val) => localVal = val,
+              )
+            else if (def.type == PropertyType.options)
+              DropdownButtonFormField<String>(
+                value: def.options.contains(localVal) ? localVal : null,
+                items: def.options
+                    .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+                    .toList(),
+                onChanged: (val) => setDialogState(() => localVal = val!),
+              )
+            else
+              TextField(
+                controller: TextEditingController(text: localVal),
+                decoration: const InputDecoration(labelText: 'Value'),
+                onChanged: (val) => localVal = val,
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            onSave(localVal);
+            Navigator.pop(context);
+          },
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 
@@ -623,70 +571,231 @@ class _TaskDetailViewState extends State<TaskDetailView> {
       builder: (context) {
         final availableTags = widget.manager.allTags;
         return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Add Tag'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: _tagController,
-                    decoration: const InputDecoration(
-                      hintText: 'Tag name (no spaces)',
-                    ),
-                    autofocus: true,
-                    onSubmitted: (val) {
-                      widget.manager.addTag(widget.node, val.trim());
-                      Navigator.pop(context);
-                    },
-                  ),
-                  if (availableTags.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Recently used:',
-                      style: TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 4,
-                      children: availableTags.map((tag) {
-                        return ActionChip(
-                          label: Text(
-                            '#$tag',
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                          onPressed: () {
-                            widget.manager.addTag(widget.node, tag);
-                            Navigator.pop(context);
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    widget.manager.addTag(
-                      widget.node,
-                      _tagController.text.trim(),
-                    );
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Add Tag'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _tagController,
+                  decoration: const InputDecoration(hintText: 'Tag name'),
+                  autofocus: true,
+                  onSubmitted: (val) {
+                    widget.manager.addTag(widget.node, val.trim());
                     Navigator.pop(context);
                   },
-                  child: const Text('Add'),
                 ),
+                if (availableTags.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Recently used:',
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 4,
+                    children: availableTags
+                        .map(
+                          (tag) => ActionChip(
+                            label: Text(
+                              '#$tag',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            onPressed: () {
+                              widget.manager.addTag(widget.node, tag);
+                              Navigator.pop(context);
+                            },
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
               ],
-            );
-          },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  widget.manager.addTag(
+                    widget.node,
+                    _tagController.text.trim(),
+                  );
+                  Navigator.pop(context);
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          ),
         );
       },
     );
+  }
+
+  Widget _buildLogEntry(BuildContext context, LogEntry entry) {
+    final isManual = entry.message.startsWith('Manual:');
+    final message = isManual
+        ? entry.message.replaceFirst('Manual:', '').trim()
+        : entry.message;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isManual
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: isManual
+              ? Border.all(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.1),
+                )
+              : null,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              children: [
+                Text(
+                  DateFormat('HH:mm').format(entry.timestamp),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    color: Colors.blueGrey,
+                  ),
+                ),
+                Text(
+                  DateFormat('MMM dd').format(entry.timestamp),
+                  style: const TextStyle(fontSize: 8, color: Colors.blueGrey),
+                ),
+              ],
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isManual ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Colors.blueGrey),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+            color: Colors.blueGrey,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showStatePicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Change Status',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: widget.manager.todoStates.map((state) {
+                  final color = widget.manager.getColorForState(state);
+                  final isSelected = widget.node.todoState == state;
+                  return InkWell(
+                    onTap: () {
+                      widget.manager.setNodeState(widget.node, state);
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? color
+                            : color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        state,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _pickDate(BuildContext context, {required bool isDeadline}) async {
+    final initial =
+        (isDeadline ? widget.node.deadline : widget.node.scheduled) ??
+        DateTime.now();
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (pickedDate != null) {
+      if (!mounted) return;
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initial),
+      );
+      final finalDateTime = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime?.hour ?? initial.hour,
+        pickedTime?.minute ?? initial.minute,
+      );
+      if (isDeadline)
+        widget.manager.setDeadline(widget.node, finalDateTime);
+      else
+        widget.manager.setScheduled(widget.node, finalDateTime);
+    }
   }
 
   String _formatDuration(Duration d) {
@@ -716,7 +825,7 @@ class _MetadataItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(8.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -725,8 +834,7 @@ class _MetadataItem extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.w800,
-                color: Colors.grey,
-                letterSpacing: 0.5,
+                color: Colors.blueGrey,
               ),
             ),
             const SizedBox(height: 4),
@@ -738,8 +846,9 @@ class _MetadataItem extends StatelessWidget {
                 Text(
                   value,
                   style: TextStyle(
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: color ?? Colors.blueGrey,
+                    color: color,
                   ),
                 ),
               ],

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'org_node.dart';
 import 'persistence_manager.dart';
 import 'agenda_models.dart';
+import 'property_models.dart';
 
 class NodeManager extends ChangeNotifier {
   final List<OrgNode> _rootNodes = [];
@@ -32,7 +33,16 @@ class NodeManager extends ChangeNotifier {
   ];
 
   List<String> _allTags = ['Work', 'Personal', 'Shopping'];
-  List<String> _allPropertyKeys = ['PRIORITY', 'LOCATION', 'ASSIGNEE'];
+  List<PropertyDefinition> _propertyDefinitions = [
+    PropertyDefinition(
+      key: 'PRIORITY',
+      type: PropertyType.options,
+      options: ['HIGH', 'MEDIUM', 'LOW'],
+    ),
+    PropertyDefinition(key: 'LOCATION', type: PropertyType.text),
+    PropertyDefinition(key: 'ASSIGNEE', type: PropertyType.text),
+    PropertyDefinition(key: 'DONE', type: PropertyType.boolean),
+  ];
 
   NodeManager() {
     _loadFromDisk();
@@ -64,7 +74,9 @@ class NodeManager extends ChangeNotifier {
         _allTags = List<String>.from(data['allTags']);
       }
       if (data['allPropKeys'] != null) {
-        _allPropertyKeys = List<String>.from(data['allPropKeys']);
+        _propertyDefinitions = (data['allPropKeys'] as List<String>)
+            .map((s) => PropertyDefinition.deserialize(s))
+            .toList();
       }
     } else {
       // First run or empty file
@@ -87,7 +99,7 @@ class NodeManager extends ChangeNotifier {
       _agendaSections,
       _doneStates.toList(),
       _allTags,
-      _allPropertyKeys,
+      _propertyDefinitions.map((d) => d.serialize()).toList(),
     );
   }
 
@@ -98,7 +110,7 @@ class NodeManager extends ChangeNotifier {
   List<AgendaSection> get agendaSections => _agendaSections;
   Set<String> get doneStates => _doneStates;
   List<String> get allTags => _allTags;
-  List<String> get allPropertyKeys => _allPropertyKeys;
+  List<PropertyDefinition> get propertyDefinitions => _propertyDefinitions;
 
   bool isDone(OrgNode node) => _doneStates.contains(node.todoState);
 
@@ -187,8 +199,8 @@ class NodeManager extends ChangeNotifier {
 
   void setProperty(OrgNode node, String key, String value) {
     if (key.isNotEmpty) {
-      if (!_allPropertyKeys.contains(key)) {
-        _allPropertyKeys.add(key);
+      if (!_propertyDefinitions.any((d) => d.key == key)) {
+        _propertyDefinitions.add(PropertyDefinition(key: key));
       }
       node.properties[key] = value;
       notifyListeners();
@@ -295,8 +307,8 @@ class NodeManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setAllPropertyKeys(List<String> keys) {
-    _allPropertyKeys = keys;
+  void setAllPropertyKeys(List<PropertyDefinition> keys) {
+    _propertyDefinitions = keys;
     notifyListeners();
   }
 

@@ -12,20 +12,24 @@ class KanbanView extends StatelessWidget {
   Widget build(BuildContext context) {
     final allNodes = _collectAllNodes(manager.rootNodes);
 
-    return Container(
-      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
-      child: SingleChildScrollView(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: manager.todoStates.map((state) {
+          children: manager.kanbanColumns.map((state) {
             final tasksInState = allNodes
                 .where((n) => n.todoState == state)
                 .toList();
             return _buildKanbanColumn(context, state, tasksInState);
           }).toList(),
         ),
+      ),
+      floatingActionButton: FloatingActionButton.small(
+        onPressed: () => _showColumnSettings(context),
+        child: const Icon(Icons.view_column),
       ),
     );
   }
@@ -114,6 +118,50 @@ class KanbanView extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  void _showColumnSettings(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Visible Columns',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              ...manager.todoStates.map(
+                (state) => CheckboxListTile(
+                  title: Text(state),
+                  value: manager.kanbanColumns.contains(state),
+                  onChanged: (val) {
+                    final current = List<String>.from(manager.kanbanColumns);
+                    if (val == true) {
+                      current.add(state);
+                      // Keep order same as todoStates
+                      current.sort(
+                        (a, b) => manager.todoStates
+                            .indexOf(a)
+                            .compareTo(manager.todoStates.indexOf(b)),
+                      );
+                    } else {
+                      current.remove(state);
+                    }
+                    manager.setKanbanColumns(current);
+                    setModalState(() {});
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -208,6 +256,22 @@ class _KanbanCard extends StatelessWidget {
                         ),
                       ],
                     ],
+                  ),
+                ],
+                if (node.tags.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: node.tags
+                        .map(
+                          (tag) => _Tag(
+                            icon: Icons.local_offer,
+                            label: tag,
+                            color: Colors.blueAccent,
+                          ),
+                        )
+                        .toList(),
                   ),
                 ],
               ],

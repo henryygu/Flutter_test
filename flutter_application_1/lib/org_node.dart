@@ -56,6 +56,7 @@ class OrgNode {
     List<TimeLog>? clockLogs,
     List<LogEntry>? history,
     Map<String, String>? properties,
+    List<String>? tags,
   }) : id = id ?? const Uuid().v4(),
        children = children ?? [],
        created = created ?? DateTime.now(),

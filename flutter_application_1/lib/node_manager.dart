@@ -4,6 +4,20 @@ import 'package:intl/intl.dart';
 import 'org_node.dart';
 import 'persistence_manager.dart';
 
+enum AgendaTimeRange { day, week, month, all }
+
+class AgendaFilter {
+  AgendaTimeRange timeRange;
+  Set<String> includedTags;
+  Set<String> includedStates;
+
+  AgendaFilter({
+    this.timeRange = AgendaTimeRange.day,
+    this.includedTags = const {},
+    this.includedStates = const {},
+  });
+}
+
 class NodeManager extends ChangeNotifier {
   final List<OrgNode> _rootNodes = [];
   final PersistenceManager _persistence = PersistenceManager();
@@ -15,6 +29,10 @@ class NodeManager extends ChangeNotifier {
     'STALLED': Colors.blueGrey,
     'DONE': Colors.green,
   };
+
+  List<String> _kanbanColumns = ['TODO', 'WAITING', 'STALLED', 'DONE'];
+
+  AgendaFilter _agendaFilter = AgendaFilter();
 
   NodeManager() {
     _loadFromDisk();
@@ -33,6 +51,9 @@ class NodeManager extends ChangeNotifier {
       if (data['colors'] != null) {
         _stateColors = Map<String, Color>.from(data['colors']);
       }
+      if (data['kanban'] != null) {
+        _kanbanColumns = List<String>.from(data['kanban']);
+      }
     } else {
       // First run or empty file
       _rootNodes.add(OrgNode(content: "Welcome to Flutter Org Mode"));
@@ -46,12 +67,19 @@ class NodeManager extends ChangeNotifier {
   }
 
   void _saveToDisk() {
-    _persistence.saveNodes(_rootNodes, _todoStates, _stateColors);
+    _persistence.saveNodes(
+      _rootNodes,
+      _todoStates,
+      _stateColors,
+      _kanbanColumns,
+    );
   }
 
   List<OrgNode> get rootNodes => _rootNodes;
   List<String> get todoStates => _todoStates;
   Map<String, Color> get stateColors => _stateColors;
+  List<String> get kanbanColumns => _kanbanColumns;
+  AgendaFilter get agendaFilter => _agendaFilter;
 
   @override
   void notifyListeners() {
@@ -196,5 +224,29 @@ class NodeManager extends ChangeNotifier {
       if (found != null) return found;
     }
     return null;
+  }
+
+  void addTag(OrgNode node, String tag) {
+    if (tag.isNotEmpty && !node.tags.contains(tag)) {
+      node.tags.add(tag);
+      notifyListeners();
+    }
+  }
+
+  void removeTag(OrgNode node, String tag) {
+    if (node.tags.contains(tag)) {
+      node.tags.remove(tag);
+      notifyListeners();
+    }
+  }
+
+  void setKanbanColumns(List<String> cols) {
+    _kanbanColumns = cols;
+    notifyListeners();
+  }
+
+  void setAgendaFilter(AgendaFilter filter) {
+    _agendaFilter = filter;
+    notifyListeners();
   }
 }

@@ -201,6 +201,10 @@ class OrgNodeWidget extends StatelessWidget {
                       color: Colors.purple,
                     ),
                   ),
+                  ...node.tags.map(
+                    (tag) =>
+                        _MetadataTag(label: '#$tag', color: Colors.blueAccent),
+                  ),
                 ],
               ),
             ),

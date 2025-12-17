@@ -19,6 +19,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
   final TextEditingController _commentController = TextEditingController();
   final TextEditingController _propKeyController = TextEditingController();
   final TextEditingController _propValController = TextEditingController();
+  final TextEditingController _tagController = TextEditingController();
 
   @override
   void initState() {
@@ -32,6 +33,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
     _commentController.dispose();
     _propKeyController.dispose();
     _propValController.dispose();
+    _tagController.dispose();
     super.dispose();
   }
 
@@ -130,6 +132,11 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                 onChanged: (val) =>
                     widget.manager.updateNodeDescription(widget.node, val),
               ),
+
+              const Divider(height: 48),
+
+              // Tags Section
+              _buildTagsSection(context),
 
               const Divider(height: 48),
 
@@ -505,6 +512,74 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                 _propKeyController.text,
                 _propValController.text,
               );
+              Navigator.pop(context);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTagsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('TAGS', Icons.local_offer_outlined),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ...widget.node.tags.map(
+              (tag) => Chip(
+                label: Text('#$tag', style: const TextStyle(fontSize: 12)),
+                onDeleted: () => widget.manager.removeTag(widget.node, tag),
+                deleteIcon: const Icon(Icons.close, size: 14),
+                backgroundColor: Colors.blueAccent.withOpacity(0.1),
+                side: BorderSide.none,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            ActionChip(
+              avatar: const Icon(Icons.add, size: 14),
+              label: const Text('Add Tag', style: TextStyle(fontSize: 12)),
+              onPressed: () => _showAddTagDialog(context),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showAddTagDialog(BuildContext context) {
+    _tagController.clear();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Tag'),
+        content: TextField(
+          controller: _tagController,
+          decoration: const InputDecoration(hintText: 'Tag name (no spaces)'),
+          autofocus: true,
+          onSubmitted: (val) {
+            widget.manager.addTag(widget.node, val.trim());
+            Navigator.pop(context);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              widget.manager.addTag(widget.node, _tagController.text.trim());
               Navigator.pop(context);
             },
             child: const Text('Add'),

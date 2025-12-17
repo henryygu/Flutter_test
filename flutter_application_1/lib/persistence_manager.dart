@@ -22,6 +22,7 @@ class PersistenceManager {
     List<OrgNode> nodes,
     List<String> states,
     Map<String, Color> colors,
+    List<String> kanbanColumns,
   ) async {
     if (kIsWeb) return;
 
@@ -35,6 +36,7 @@ class PersistenceManager {
         .map((e) => '${e.key}:${e.value.value}')
         .join(',');
     buffer.writeln('COLORS: $colorStrings');
+    buffer.writeln('KANBAN: ${kanbanColumns.join(',')}');
     buffer.writeln();
 
     for (var node in nodes) {
@@ -90,6 +92,16 @@ class PersistenceManager {
               }
             }
           }
+        } else if (line.startsWith('KANBAN:')) {
+          // Handled elsewhere or we can put it in return
+          final cols = line.replaceFirst('KANBAN:', '').trim().split(',');
+          // We'll return it in the map
+          return {
+            'nodes': parseMarkdown(lines.sublist(startLine).join('\n')),
+            'states': states,
+            'colors': colors,
+            'kanban': cols,
+          };
         }
       }
     }
@@ -112,13 +124,22 @@ class PersistenceManager {
 
       // Handle Headers (Tasks)
       if (trimmed.startsWith('#')) {
-        final match = RegExp(r'^(#+)\s+(\w+)\s+(.*)$').firstMatch(trimmed);
+        final match = RegExp(
+          r'^(#+)\s+(\w+)\s+(.*?)(?:\s+:(.*):)?$',
+        ).firstMatch(trimmed);
         if (match != null) {
           final depth = match.group(1)!.length;
           final state = match.group(2)!;
-          final taskContent = match.group(3)!;
+          var taskContent = match.group(3)!;
+          final tagsText = match.group(4);
 
           final newNode = OrgNode(content: taskContent, todoState: state);
+          if (tagsText != null && tagsText.isNotEmpty) {
+            newNode.tags = tagsText
+                .split(':')
+                .where((t) => t.isNotEmpty)
+                .toList();
+          }
 
           if (depth == 1) {
             rootNodes.add(newNode);

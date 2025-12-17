@@ -25,6 +25,9 @@ class PersistenceManager {
     Map<String, Color> colors,
     List<String> kanbanColumns,
     List<AgendaSection> sections,
+    List<String> doneStates,
+    List<String> allTags,
+    List<String> allPropKeys,
   ) async {
     if (kIsWeb) return;
 
@@ -41,6 +44,9 @@ class PersistenceManager {
     buffer.writeln('KANBAN: ${kanbanColumns.join(',')}');
     final sectionStrings = sections.map((s) => s.serialize()).join(';');
     buffer.writeln('SECTIONS: $sectionStrings');
+    buffer.writeln('DONE_STATES: ${doneStates.join(',')}');
+    buffer.writeln('ALL_TAGS: ${allTags.join(',')}');
+    buffer.writeln('ALL_PROP_KEYS: ${allPropKeys.join(',')}');
     buffer.writeln();
 
     for (var node in nodes) {
@@ -73,6 +79,9 @@ class PersistenceManager {
     Map<String, Color>? colors;
     List<String>? kanban;
     List<AgendaSection>? sections;
+    List<String>? doneStates;
+    List<String>? allTags;
+    List<String>? allPropKeys;
 
     final lines = markdown.split('\n');
 
@@ -107,6 +116,15 @@ class PersistenceManager {
               .where((s) => s.isNotEmpty)
               .map((s) => AgendaSection.deserialize(s))
               .toList();
+        } else if (line.startsWith('DONE_STATES:')) {
+          doneStates = line.replaceFirst('DONE_STATES:', '').trim().split(',');
+        } else if (line.startsWith('ALL_TAGS:')) {
+          allTags = line.replaceFirst('ALL_TAGS:', '').trim().split(',');
+        } else if (line.startsWith('ALL_PROP_KEYS:')) {
+          allPropKeys = line
+              .replaceFirst('ALL_PROP_KEYS:', '')
+              .trim()
+              .split(',');
         }
       }
     }
@@ -118,6 +136,9 @@ class PersistenceManager {
       'colors': colors,
       'kanban': kanban,
       'sections': sections,
+      'doneStates': doneStates,
+      'allTags': allTags,
+      'allPropKeys': allPropKeys,
     };
   }
 
@@ -177,17 +198,27 @@ class PersistenceManager {
           currentNode.deadline = _safeParseDate(
             trimmed.replaceFirst('DEADLINE:', '').trim(),
           );
+        } else if (trimmed.startsWith('CLOSED:')) {
+          final match = RegExp(r'\[(.*?)\]').firstMatch(trimmed);
+          if (match != null) {
+            currentNode.closedAt = _safeParseDateTime(match.group(1)!);
+          }
         } else if (trimmed.startsWith('DESC:')) {
           currentNode.description = trimmed.replaceFirst('DESC:', '').trim();
         } else if (trimmed.startsWith(':') && trimmed.endsWith(':')) {
           // Entry into or exit from properties
-        } else if (trimmed.startsWith(':') && trimmed.contains(' ')) {
-          // Property: :KEY: VALUE
-          final parts = trimmed.substring(1).split(':');
-          if (parts.length >= 2) {
-            final key = parts[0].trim();
-            final value = parts.sublist(1).join(':').trim();
-            currentNode.properties[key] = value;
+        } else if (trimmed.startsWith(':')) {
+          if (trimmed == ':PROPERTIES:' || trimmed == ':END:') {
+            // Header/Footer of properties block
+          } else {
+            // Property: :KEY: VALUE
+            final firstColon = trimmed.indexOf(':');
+            final secondColon = trimmed.indexOf(':', firstColon + 1);
+            if (firstColon == 0 && secondColon > 0) {
+              final key = trimmed.substring(1, secondColon).trim();
+              final value = trimmed.substring(secondColon + 1).trim();
+              currentNode.properties[key] = value;
+            }
           }
         } else if (trimmed.startsWith('CLOCK:')) {
           // CLOCK: [2025-12-17 10:00]--[2025-12-17 10:05]

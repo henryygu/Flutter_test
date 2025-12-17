@@ -32,6 +32,7 @@ class OrgNode {
   DateTime created;
   DateTime? scheduled;
   DateTime? deadline;
+  DateTime? closedAt;
 
   // Clocking
   List<TimeLog> clockLogs;
@@ -53,6 +54,7 @@ class OrgNode {
     DateTime? created,
     this.scheduled,
     this.deadline,
+    this.closedAt,
     List<TimeLog>? clockLogs,
     List<LogEntry>? history,
     Map<String, String>? properties,
@@ -97,6 +99,11 @@ class OrgNode {
     if (deadline != null) {
       buffer.writeln(
         'DEADLINE: ${DateFormat('yyyy-MM-dd HH:mm').format(deadline!)}',
+      );
+    }
+    if (closedAt != null) {
+      buffer.writeln(
+        'CLOSED: [${DateFormat('yyyy-MM-dd HH:mm').format(closedAt!)}]',
       );
     }
 

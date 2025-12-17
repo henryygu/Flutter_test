@@ -77,11 +77,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final NodeManager _manager = NodeManager();
   int _selectedIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-  }
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
@@ -89,13 +85,11 @@ class _HomeScreenState extends State<HomeScreen> {
       listenable: _manager,
       builder: (context, child) {
         return Scaffold(
-          appBar: AppBar(
-            title: Text(_getPageTitle()),
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerHighest,
+          body: Navigator(
+            key: _navigatorKey,
+            onGenerateRoute: (settings) =>
+                MaterialPageRoute(builder: (context) => _buildPage()),
           ),
-          body: _buildPage(),
           floatingActionButton: _selectedIndex == 0
               ? FloatingActionButton(
                   onPressed: () => _manager.addRootNode(""),
@@ -123,29 +117,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
             selectedIndex: _selectedIndex,
-            onDestinationSelected: (index) =>
-                setState(() => _selectedIndex = index),
+            onDestinationSelected: (index) {
+              setState(() => _selectedIndex = index);
+              // Clear the nested navigator stack when switching tabs
+              _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+            },
           ),
         );
       },
     );
-  }
-
-  String _getPageTitle() {
-    switch (_selectedIndex) {
-      case 0:
-        return 'Org Tree';
-      case 1:
-        return 'Agenda View';
-      case 2:
-        return 'Timeline';
-      case 3:
-        return 'Kanban Board';
-      case 4:
-        return 'Settings';
-      default:
-        return 'Org Mode';
-    }
   }
 
   Widget _buildPage() {
@@ -167,17 +147,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTreeView() {
     if (_manager.rootNodes.isEmpty) {
-      return const Center(child: Text("Press + to add a root task"));
+      return Scaffold(
+        appBar: AppBar(title: const Text('Org Tree')),
+        body: const Center(child: Text("Press + to add a root task")),
+      );
     }
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      itemCount: _manager.rootNodes.length,
-      itemBuilder: (context, index) {
-        return OrgNodeWidget(
-          node: _manager.rootNodes[index],
-          manager: _manager,
-        );
-      },
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Org Tree'),
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        itemCount: _manager.rootNodes.length,
+        itemBuilder: (context, index) {
+          return OrgNodeWidget(
+            node: _manager.rootNodes[index],
+            manager: _manager,
+          );
+        },
+      ),
     );
   }
 }

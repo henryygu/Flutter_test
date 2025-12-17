@@ -18,7 +18,10 @@ class OrgNodeWidget extends StatelessWidget {
     this.depth = 0,
     this.showChildren = true,
     this.showIndentation = true,
+    this.forceCollapsed = false,
   });
+
+  final bool forceCollapsed;
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +116,7 @@ class OrgNodeWidget extends StatelessWidget {
                     fontSize: 16,
                     fontWeight: isRoot ? FontWeight.w600 : FontWeight.normal,
                     color: Theme.of(context).colorScheme.onSurface,
-                    decoration: node.todoState == 'DONE'
+                    decoration: manager.isDone(node)
                         ? TextDecoration.lineThrough
                         : null,
                   ),
@@ -168,9 +171,12 @@ class OrgNodeWidget extends StatelessWidget {
           ),
 
           // Metadata Row
-          if (node.scheduled != null ||
-              node.deadline != null ||
-              node.clockLogs.isNotEmpty)
+          if (!forceCollapsed &&
+              (node.scheduled != null ||
+                  node.deadline != null ||
+                  node.clockLogs.isNotEmpty ||
+                  node.properties.isNotEmpty ||
+                  node.tags.isNotEmpty))
             Padding(
               padding: EdgeInsets.only(
                 left: (depth * 12.0) + 64,
@@ -210,7 +216,7 @@ class OrgNodeWidget extends StatelessWidget {
                 ],
               ),
             ),
-          if (node.description.isNotEmpty)
+          if (!forceCollapsed && node.description.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(left: (depth * 12.0) + 64, bottom: 8),
               child: Text(
@@ -393,6 +399,8 @@ class OrgNodeWidget extends StatelessWidget {
     );
 
     if (pickedDate != null) {
+      if (!context.mounted) return;
+      await Future.delayed(const Duration(milliseconds: 100));
       if (!context.mounted) return;
       final TimeOfDay? pickedTime = await showTimePicker(
         context: context,

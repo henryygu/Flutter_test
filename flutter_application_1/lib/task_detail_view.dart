@@ -145,6 +145,25 @@ class _TaskDetailViewState extends State<TaskDetailView> {
 
               const Divider(height: 48),
 
+              // Sub-tasks Section
+              _buildSectionTitle('SUB-TASKS', Icons.account_tree_outlined),
+              const SizedBox(height: 12),
+              if (widget.node.children.isEmpty)
+                const Text(
+                  'No sub-tasks nested here.',
+                  style: TextStyle(fontStyle: FontStyle.italic),
+                )
+              else
+                ...widget.node.children.map(
+                  (child) => OrgNodeWidget(
+                    node: child,
+                    manager: widget.manager,
+                    depth: 0,
+                  ),
+                ),
+
+              const Divider(height: 48),
+
               // Comments Section
               _buildSectionTitle('COMMENTS & LOGS', Icons.forum_outlined),
               const SizedBox(height: 12),
@@ -194,25 +213,6 @@ class _TaskDetailViewState extends State<TaskDetailView> {
               else
                 ...widget.node.history.reversed.map(
                   (entry) => _buildLogEntry(context, entry),
-                ),
-
-              const Divider(height: 48),
-
-              // Sub-tasks
-              _buildSectionTitle('SUB-TASKS', Icons.account_tree_outlined),
-              const SizedBox(height: 12),
-              if (widget.node.children.isEmpty)
-                const Text(
-                  'No sub-tasks nested here.',
-                  style: TextStyle(fontStyle: FontStyle.italic),
-                )
-              else
-                ...widget.node.children.map(
-                  (child) => OrgNodeWidget(
-                    node: child,
-                    manager: widget.manager,
-                    depth: 0,
-                  ),
                 ),
 
               const SizedBox(height: 80), // Space for FAB
@@ -476,6 +476,8 @@ class _TaskDetailViewState extends State<TaskDetailView> {
 
     if (pickedDate != null) {
       if (!context.mounted) return;
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!context.mounted) return;
       final TimeOfDay? pickedTime = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(initial),
@@ -502,41 +504,79 @@ class _TaskDetailViewState extends State<TaskDetailView> {
     _propValController.clear();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Property'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _propKeyController,
-              decoration: const InputDecoration(
-                hintText: 'Key (e.g. PRIORITY)',
+      builder: (context) {
+        final availableKeys = widget.manager.allPropertyKeys;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add Property'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _propKeyController,
+                    decoration: const InputDecoration(
+                      hintText: 'Key (e.g. PRIORITY)',
+                    ),
+                  ),
+                  if (availableKeys.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Recently used:',
+                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 4,
+                      children: availableKeys.map((key) {
+                        return ChoiceChip(
+                          label: Text(
+                            key,
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                          selected: _propKeyController.text == key,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setDialogState(() {
+                                _propKeyController.text = key;
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _propValController,
+                    decoration: const InputDecoration(
+                      hintText: 'Value (e.g. HIGH)',
+                    ),
+                  ),
+                ],
               ),
-            ),
-            TextField(
-              controller: _propValController,
-              decoration: const InputDecoration(hintText: 'Value (e.g. HIGH)'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              widget.manager.setProperty(
-                widget.node,
-                _propKeyController.text,
-                _propValController.text,
-              );
-              Navigator.pop(context);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    widget.manager.setProperty(
+                      widget.node,
+                      _propKeyController.text.trim().toUpperCase(),
+                      _propValController.text.trim(),
+                    );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -580,31 +620,72 @@ class _TaskDetailViewState extends State<TaskDetailView> {
     _tagController.clear();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Tag'),
-        content: TextField(
-          controller: _tagController,
-          decoration: const InputDecoration(hintText: 'Tag name (no spaces)'),
-          autofocus: true,
-          onSubmitted: (val) {
-            widget.manager.addTag(widget.node, val.trim());
-            Navigator.pop(context);
+      builder: (context) {
+        final availableTags = widget.manager.allTags;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add Tag'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _tagController,
+                    decoration: const InputDecoration(
+                      hintText: 'Tag name (no spaces)',
+                    ),
+                    autofocus: true,
+                    onSubmitted: (val) {
+                      widget.manager.addTag(widget.node, val.trim());
+                      Navigator.pop(context);
+                    },
+                  ),
+                  if (availableTags.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Recently used:',
+                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 4,
+                      children: availableTags.map((tag) {
+                        return ActionChip(
+                          label: Text(
+                            '#$tag',
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                          onPressed: () {
+                            widget.manager.addTag(widget.node, tag);
+                            Navigator.pop(context);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    widget.manager.addTag(
+                      widget.node,
+                      _tagController.text.trim(),
+                    );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
           },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              widget.manager.addTag(widget.node, _tagController.text.trim());
-              Navigator.pop(context);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

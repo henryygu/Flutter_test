@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'org_node.dart';
 import 'node_manager.dart';
 import 'package:intl/intl.dart';
+import 'task_detail_view.dart' as task_detail_view;
 
 class TimelineView extends StatefulWidget {
   final NodeManager manager;
@@ -23,55 +24,30 @@ class _TimelineViewState extends State<TimelineView> {
     final allNodes = widget.manager.collectAllNodes(widget.manager.rootNodes);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: ListenableBuilder(
-        listenable: widget.manager,
-        builder: (context, _) {
-          return Column(
-            children: [
-              _buildTimelineHeader(),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  itemCount: (endOffset >= startOffset)
-                      ? (endOffset - startOffset + 1)
-                      : 0,
-                  itemBuilder: (context, index) {
-                    final day = today.add(Duration(days: startOffset + index));
-                    return _buildDaySection(day, allNodes);
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTimelineHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            'TIMELINE',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.5,
-              color: Colors.blueGrey,
-            ),
-          ),
-          IconButton.filledTonal(
+      appBar: AppBar(
+        title: const Text('Timeline'),
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        actions: [
+          IconButton(
             onPressed: _showRangeSettings,
             icon: const Icon(Icons.date_range),
           ),
         ],
+      ),
+      body: ListenableBuilder(
+        listenable: widget.manager,
+        builder: (context, _) {
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: (endOffset >= startOffset)
+                ? (endOffset - startOffset + 1)
+                : 0,
+            itemBuilder: (context, index) {
+              final day = today.add(Duration(days: startOffset + index));
+              return _buildDaySection(day, allNodes);
+            },
+          );
+        },
       ),
     );
   }
@@ -82,19 +58,90 @@ class _TimelineViewState extends State<TimelineView> {
       const Duration(hours: 23, minutes: 59, seconds: 59),
     );
 
-    final dayTasks = allNodes.where((n) {
-      final target = n.scheduled ?? n.deadline;
-      if (target == null) return false;
-      return target.isAfter(startOfDay.subtract(const Duration(seconds: 1))) &&
-          target.isBefore(endOfDay);
-    }).toList();
+    final List<_TimelineEvent> events = [];
 
-    // Sort by time
-    dayTasks.sort((a, b) {
-      final ta = a.scheduled ?? a.deadline!;
-      final tb = b.scheduled ?? b.deadline!;
-      return ta.compareTo(tb);
-    });
+    for (var node in allNodes) {
+      // Scheduled
+      if (node.scheduled != null &&
+          node.scheduled!.isAfter(
+            startOfDay.subtract(const Duration(seconds: 1)),
+          ) &&
+          node.scheduled!.isBefore(endOfDay)) {
+        events.add(
+          _TimelineEvent(
+            time: node.scheduled!,
+            label: 'SCH',
+            node: node,
+            color: Colors.green,
+          ),
+        );
+      }
+      // Deadlines
+      if (node.deadline != null &&
+          node.deadline!.isAfter(
+            startOfDay.subtract(const Duration(seconds: 1)),
+          ) &&
+          node.deadline!.isBefore(endOfDay)) {
+        events.add(
+          _TimelineEvent(
+            time: node.deadline!,
+            label: 'DL',
+            node: node,
+            color: Colors.red,
+          ),
+        );
+      }
+      // Clock Logs
+      for (var log in node.clockLogs) {
+        if (log.start.isAfter(
+              startOfDay.subtract(const Duration(seconds: 1)),
+            ) &&
+            log.start.isBefore(endOfDay)) {
+          events.add(
+            _TimelineEvent(
+              time: log.start,
+              label: 'IN',
+              node: node,
+              color: Colors.blue,
+              detail: 'Clock In',
+            ),
+          );
+        }
+        if (log.end != null &&
+            log.end!.isAfter(startOfDay.subtract(const Duration(seconds: 1))) &&
+            log.end!.isBefore(endOfDay)) {
+          events.add(
+            _TimelineEvent(
+              time: log.end!,
+              label: 'OUT',
+              node: node,
+              color: Colors.blueGrey,
+              detail: 'Clock Out',
+            ),
+          );
+        }
+      }
+      // Done / Closed
+      final isDone = widget.manager.isDone(node);
+      if (isDone &&
+          node.closedAt != null &&
+          node.closedAt!.isAfter(
+            startOfDay.subtract(const Duration(seconds: 1)),
+          ) &&
+          node.closedAt!.isBefore(endOfDay)) {
+        events.add(
+          _TimelineEvent(
+            time: node.closedAt!,
+            label: 'DONE',
+            node: node,
+            color: Colors.green,
+            detail: 'Task Closed',
+          ),
+        );
+      }
+    }
+
+    events.sort((a, b) => a.time.compareTo(b.time));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,11 +157,11 @@ class _TimelineViewState extends State<TimelineView> {
             ),
           ),
         ),
-        if (dayTasks.isEmpty)
+        if (events.isEmpty)
           const Padding(
             padding: EdgeInsets.only(left: 32, bottom: 16),
             child: Text(
-              'No tasks scheduled.',
+              'No activity scheduled.',
               style: TextStyle(
                 color: Colors.grey,
                 fontStyle: FontStyle.italic,
@@ -123,42 +170,75 @@ class _TimelineViewState extends State<TimelineView> {
             ),
           )
         else
-          ...dayTasks.map((node) => _buildTimelineItem(node)),
+          ...events.map((e) => _buildTimelineItem(e)),
         const Divider(height: 32),
       ],
     );
   }
 
-  Widget _buildTimelineItem(OrgNode node) {
-    final time = node.scheduled ?? node.deadline!;
-    final timeStr = DateFormat('HH:mm').format(time);
-    final color = widget.manager.getColorForState(node.todoState);
+  Widget _buildTimelineItem(_TimelineEvent event) {
+    final timeStr = DateFormat('HH:mm').format(event.time);
+    final statusColor = widget.manager.getColorForState(event.node.todoState);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Time and Label
           SizedBox(
-            width: 50,
-            child: Text(
-              timeStr,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.blueGrey.shade700,
-                fontSize: 14,
-                fontFamily: 'monospace',
-              ),
+            width: 80,
+            child: Row(
+              children: [
+                Text(
+                  timeStr,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blueGrey.shade700,
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: event.color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    event.label,
+                    style: TextStyle(
+                      color: event.color,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 8),
-          Container(width: 2, height: 40, color: color.withValues(alpha: 0.3)),
+          Container(
+            width: 2,
+            height: 40,
+            color: event.color.withValues(alpha: 0.3),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                // Navigate to task detail or show popup
-              },
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => task_detail_view.TaskDetailView(
+                    node: event.node,
+                    manager: widget.manager,
+                  ),
+                ),
+              ),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -167,7 +247,7 @@ class _TimelineViewState extends State<TimelineView> {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: color.withValues(alpha: 0.1)),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.1)),
                 ),
                 child: Row(
                   children: [
@@ -177,13 +257,13 @@ class _TimelineViewState extends State<TimelineView> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        node.todoState,
+                        event.node.todoState,
                         style: TextStyle(
-                          color: color,
+                          color: statusColor,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -192,8 +272,17 @@ class _TimelineViewState extends State<TimelineView> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        node.content,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
+                        event.node.content +
+                            (event.detail != null ? ' (${event.detail})' : ''),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          decoration: widget.manager.isDone(event.node)
+                              ? TextDecoration.lineThrough
+                              : null,
+                          color: widget.manager.isDone(event.node)
+                              ? Colors.grey
+                              : null,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -267,4 +356,20 @@ class _TimelineViewState extends State<TimelineView> {
       ),
     );
   }
+}
+
+class _TimelineEvent {
+  final DateTime time;
+  final String label;
+  final OrgNode node;
+  final Color color;
+  final String? detail;
+
+  _TimelineEvent({
+    required this.time,
+    required this.label,
+    required this.node,
+    required this.color,
+    this.detail,
+  });
 }

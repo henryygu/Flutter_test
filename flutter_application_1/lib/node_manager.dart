@@ -15,6 +15,7 @@ class NodeManager extends ChangeNotifier {
     'STALLED': Colors.blueGrey,
     'DONE': Colors.green,
   };
+  Set<String> _doneStates = {'DONE'};
 
   List<String> _kanbanColumns = ['TODO', 'WAITING', 'STALLED', 'DONE'];
 
@@ -29,6 +30,9 @@ class NodeManager extends ChangeNotifier {
       tags: {'Personal'},
     ),
   ];
+
+  List<String> _allTags = ['Work', 'Personal', 'Shopping'];
+  List<String> _allPropertyKeys = ['PRIORITY', 'LOCATION', 'ASSIGNEE'];
 
   NodeManager() {
     _loadFromDisk();
@@ -53,6 +57,15 @@ class NodeManager extends ChangeNotifier {
       if (data['sections'] != null) {
         _agendaSections = List<AgendaSection>.from(data['sections']);
       }
+      if (data['doneStates'] != null) {
+        _doneStates = Set<String>.from(data['doneStates']);
+      }
+      if (data['allTags'] != null) {
+        _allTags = List<String>.from(data['allTags']);
+      }
+      if (data['allPropKeys'] != null) {
+        _allPropertyKeys = List<String>.from(data['allPropKeys']);
+      }
     } else {
       // First run or empty file
       _rootNodes.add(OrgNode(content: "Welcome to Flutter Org Mode"));
@@ -72,6 +85,9 @@ class NodeManager extends ChangeNotifier {
       _stateColors,
       _kanbanColumns,
       _agendaSections,
+      _doneStates.toList(),
+      _allTags,
+      _allPropertyKeys,
     );
   }
 
@@ -80,6 +96,11 @@ class NodeManager extends ChangeNotifier {
   Map<String, Color> get stateColors => _stateColors;
   List<String> get kanbanColumns => _kanbanColumns;
   List<AgendaSection> get agendaSections => _agendaSections;
+  Set<String> get doneStates => _doneStates;
+  List<String> get allTags => _allTags;
+  List<String> get allPropertyKeys => _allPropertyKeys;
+
+  bool isDone(OrgNode node) => _doneStates.contains(node.todoState);
 
   @override
   void notifyListeners() {
@@ -106,9 +127,21 @@ class NodeManager extends ChangeNotifier {
     if (node.todoState != newState) {
       final oldState = node.todoState;
       node.todoState = newState;
+      if (isDone(node)) {
+        node.closedAt ??= DateTime.now();
+        node.addLog('CLOSED: Task marked as Done');
+      } else if (_doneStates.contains(oldState)) {
+        node.closedAt = null;
+        node.addLog('REOPENED: Task moved out of Done');
+      }
       node.addLog('State changed from $oldState to $newState');
       notifyListeners();
     }
+  }
+
+  void setDoneStates(Set<String> states) {
+    _doneStates = states;
+    notifyListeners();
   }
 
   void updateNodeContent(OrgNode node, String newContent) {
@@ -154,6 +187,9 @@ class NodeManager extends ChangeNotifier {
 
   void setProperty(OrgNode node, String key, String value) {
     if (key.isNotEmpty) {
+      if (!_allPropertyKeys.contains(key)) {
+        _allPropertyKeys.add(key);
+      }
       node.properties[key] = value;
       notifyListeners();
     }
@@ -228,6 +264,9 @@ class NodeManager extends ChangeNotifier {
 
   void addTag(OrgNode node, String tag) {
     if (tag.isNotEmpty && !node.tags.contains(tag)) {
+      if (!_allTags.contains(tag)) {
+        _allTags.add(tag);
+      }
       node.tags.add(tag);
       notifyListeners();
     }
@@ -248,6 +287,16 @@ class NodeManager extends ChangeNotifier {
   void setAgendaSections(List<AgendaSection> sections) {
     _agendaSections = sections;
     _saveToDisk();
+    notifyListeners();
+  }
+
+  void setAllTags(List<String> tags) {
+    _allTags = tags;
+    notifyListeners();
+  }
+
+  void setAllPropertyKeys(List<String> keys) {
+    _allPropertyKeys = keys;
     notifyListeners();
   }
 

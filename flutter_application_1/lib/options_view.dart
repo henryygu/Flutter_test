@@ -16,17 +16,36 @@ class OptionsView extends StatefulWidget {
 class _OptionsViewState extends State<OptionsView> {
   late List<String> _localStates;
   late Map<String, Color> _localColors;
+  late Set<String> _localDoneStates;
+  late List<String> _localTags;
+  late List<String> _localPropKeys;
   final TextEditingController _newStateController = TextEditingController();
+  final TextEditingController _newTagController = TextEditingController();
+  final TextEditingController _newPropKeyController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _localStates = List.from(widget.manager.todoStates);
     _localColors = Map.from(widget.manager.stateColors);
+    _localDoneStates = Set.from(widget.manager.doneStates);
+    _localTags = List.from(widget.manager.allTags);
+    _localPropKeys = List.from(widget.manager.allPropertyKeys);
+  }
+
+  @override
+  void dispose() {
+    _newStateController.dispose();
+    _newTagController.dispose();
+    _newPropKeyController.dispose();
+    super.dispose();
   }
 
   void _save() {
     widget.manager.setTodoStates(_localStates, _localColors);
+    widget.manager.setDoneStates(_localDoneStates);
+    widget.manager.setAllTags(_localTags);
+    widget.manager.setAllPropertyKeys(_localPropKeys);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Preferences saved successfully'),
@@ -92,7 +111,7 @@ class _OptionsViewState extends State<OptionsView> {
             ),
             const SizedBox(height: 24),
             Container(
-              height: 400,
+              height: 350,
               decoration: BoxDecoration(
                 color: Theme.of(
                   context,
@@ -148,6 +167,38 @@ class _OptionsViewState extends State<OptionsView> {
                             letterSpacing: 1,
                           ),
                         ),
+                        subtitle: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: Checkbox(
+                                value: _localDoneStates.contains(
+                                  _localStates[i],
+                                ),
+                                visualDensity: VisualDensity.compact,
+                                onChanged: (val) {
+                                  setState(() {
+                                    if (val == true) {
+                                      _localDoneStates.add(_localStates[i]);
+                                    } else {
+                                      _localDoneStates.remove(_localStates[i]);
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'Done Category',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
                         trailing: const Icon(
                           Icons.drag_handle,
                           color: Colors.grey,
@@ -157,13 +208,13 @@ class _OptionsViewState extends State<OptionsView> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            _buildSectionHeader('Add New State', Icons.add),
             const SizedBox(height: 16),
+            _buildSectionHeader('Add State', Icons.add),
+            const SizedBox(height: 8),
             TextField(
               controller: _newStateController,
               decoration: InputDecoration(
-                hintText: 'e.g., DEFERRED, CANCELLED',
+                hintText: 'e.g., DEFERRED',
                 filled: true,
                 fillColor: Theme.of(
                   context,
@@ -173,7 +224,7 @@ class _OptionsViewState extends State<OptionsView> {
                   borderSide: BorderSide.none,
                 ),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.add_circle, size: 32),
+                  icon: const Icon(Icons.add_circle),
                   onPressed: () {
                     if (_newStateController.text.isNotEmpty) {
                       final name = _newStateController.text.toUpperCase();
@@ -190,6 +241,69 @@ class _OptionsViewState extends State<OptionsView> {
               ),
             ),
             const SizedBox(height: 32),
+
+            // Tag Management
+            _buildSectionHeader('Global Tags', Icons.local_offer),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ..._localTags.map(
+                  (tag) => Chip(
+                    label: Text('#$tag'),
+                    onDeleted: () {
+                      setState(() => _localTags.remove(tag));
+                    },
+                  ),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 16),
+                  label: const Text('Add Tag'),
+                  onPressed: () => _showAddDialog(
+                    'Add Global Tag',
+                    _newTagController,
+                    (val) {
+                      if (!_localTags.contains(val)) _localTags.add(val);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // Property Key Management
+            _buildSectionHeader('Property Keys', Icons.list_alt),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ..._localPropKeys.map(
+                  (key) => Chip(
+                    label: Text(key),
+                    onDeleted: () {
+                      setState(() => _localPropKeys.remove(key));
+                    },
+                  ),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 16),
+                  label: const Text('Add Key'),
+                  onPressed: () => _showAddDialog(
+                    'Add Meta Key',
+                    _newPropKeyController,
+                    (val) {
+                      val = val.toUpperCase();
+                      if (!_localPropKeys.contains(val))
+                        _localPropKeys.add(val);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+
             _buildSectionHeader('Data & Storage', Icons.storage),
             const SizedBox(height: 16),
             Container(
@@ -204,9 +318,7 @@ class _OptionsViewState extends State<OptionsView> {
                 children: [
                   ListTile(
                     title: const Text('Export to Markdown'),
-                    subtitle: const Text(
-                      'Copy all tasks to clipboard in Org-Markdown format',
-                    ),
+                    subtitle: const Text('Copy all tasks to clipboard'),
                     trailing: const Icon(Icons.copy),
                     onTap: () async {
                       final buffer = StringBuffer();
@@ -218,9 +330,7 @@ class _OptionsViewState extends State<OptionsView> {
                       );
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Markdown copied to clipboard!'),
-                        ),
+                        const SnackBar(content: Text('Markdown copied!')),
                       );
                     },
                   ),
@@ -228,15 +338,14 @@ class _OptionsViewState extends State<OptionsView> {
                   ListTile(
                     title: const Text('Local Storage Path'),
                     subtitle: const Text(
-                      kIsWeb
-                          ? 'Web Browser (In-Memory Only)'
-                          : 'Active on Native (Documents/tasks.md)',
+                      kIsWeb ? 'Web Browser' : 'Documents/tasks.md',
                     ),
                     leading: const Icon(Icons.info_outline),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -257,6 +366,41 @@ class _OptionsViewState extends State<OptionsView> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showAddDialog(
+    String title,
+    TextEditingController controller,
+    Function(String) onAdd,
+  ) {
+    controller.clear();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          onSubmitted: (val) {
+            setState(() => onAdd(val.trim()));
+            Navigator.pop(context);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => onAdd(controller.text.trim()));
+              Navigator.pop(context);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
     );
   }
 }

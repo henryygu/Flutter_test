@@ -17,28 +17,23 @@ class AgendaView extends StatelessWidget {
     final now = DateTime.now();
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Agenda Dashboard'),
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        actions: [
+          IconButton(
+            onPressed: () => _showSectionManager(context),
+            tooltip: 'Manage Sections',
+            icon: const Icon(Icons.settings),
+          ),
+        ],
+      ),
       body: ListenableBuilder(
         listenable: manager,
         builder: (context, _) {
           return ListView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildHeader(
-                    'Agenda Dashboard',
-                    Icons.dashboard_customize_outlined,
-                  ),
-                  IconButton.filledTonal(
-                    onPressed: () => _showSectionManager(context),
-                    tooltip: 'Manage Sections',
-                    icon: const Icon(Icons.settings),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
               if (sections.isEmpty)
                 _buildEmptyState('No sections configured. Add one in settings!')
               else
@@ -86,8 +81,9 @@ class AgendaView extends StatelessWidget {
           section.tags.isEmpty || n.tags.any((t) => section.tags.contains(t));
 
       // 3. State Filter
-      bool stateMatch =
-          section.states.isEmpty || section.states.contains(n.todoState);
+      bool stateMatch = section.states.isEmpty
+          ? !manager.isDone(n)
+          : section.states.contains(n.todoState);
 
       return dateMatch && tagMatch && stateMatch;
     }).toList();
@@ -115,6 +111,7 @@ class AgendaView extends StatelessWidget {
             manager: manager,
             showChildren: false,
             showIndentation: false,
+            forceCollapsed: manager.isDone(n),
           ),
         ),
         const SizedBox(height: 32),

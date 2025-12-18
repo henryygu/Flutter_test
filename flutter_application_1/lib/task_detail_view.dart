@@ -461,7 +461,6 @@ class _TaskDetailViewState extends State<TaskDetailView> {
           decoration: const InputDecoration(labelText: 'Select Option'),
         );
       case PropertyType.text:
-      default:
         return TextField(
           decoration: const InputDecoration(labelText: 'Text Value'),
           onChanged: onChanged,

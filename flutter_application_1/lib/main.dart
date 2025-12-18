@@ -19,7 +19,7 @@ class OrgApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Org Mode',
+      title: 'OrgFlow',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -98,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
               : null,
           bottomNavigationBar: NavigationBar(
             destinations: const [
-              NavigationDestination(icon: Icon(Icons.list), label: 'Tree'),
+              NavigationDestination(icon: Icon(Icons.list), label: 'Flow'),
               NavigationDestination(
                 icon: Icon(Icons.calendar_today),
                 label: 'Agenda',
@@ -148,13 +148,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTreeView() {
     if (_manager.rootNodes.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Org Tree')),
+        appBar: AppBar(title: const Text('OrgFlow')),
         body: const Center(child: Text("Press + to add a root task")),
       );
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Org Tree'),
+        title: const Text('OrgFlow'),
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
       body: ListView.builder(

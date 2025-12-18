@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/org_node.dart';
-import 'package:flutter_application_1/node_manager.dart';
+import 'package:orgflow/org_node.dart';
+import 'package:orgflow/node_manager.dart';
 
 void main() {
   test('OrgNode state change is logged', () {

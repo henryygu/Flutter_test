@@ -1,6 +1,8 @@
-# Flutter Org-mode Todo App
+# 📋 OrgFlow: Flutter Org-mode Todo App
 
-Welcome! This is a Flutter-based Todo application inspired by the powerful **Emacs Org-mode**. It's designed to help you manage tasks hierarchically, track your time, and view your schedule in an agenda format.
+Welcome! This is a powerful, Flutter-based Todo application inspired by the **Emacs Org-mode**. It helps you manage tasks hierarchically, track your time, and visualize your schedule through multiple lenses like Agenda, Timeline, and Kanban.
+
+---
 
 ## 🚀 Getting Started
 
@@ -57,28 +59,43 @@ flutter build macos
 
 ## ✨ Features
 
-### 1. Hierarchical Tree View
-Organize your thoughts! Create a main task and add infinite sub-tasks.
-- **Add Task**: Click the `+` button.
-- **Add Sub-task**: Click the `+` icon on any existing task.
-- **Collapse/Expand**: Click the arrow next to a task to hide/show its children.
+### 1. Hierarchical Task Management
+Organize your thoughts! Create main tasks and add infinite sub-tasks.
+- **Tree View**: View your tasks in a structured hierarchy.
+- **Collapse/Expand**: Keep your workspace clean by nesting sub-tasks.
+- **Deep Focus**: Tap any task to enter the **Task Focus** view for detailed management.
 
-### 2. Custom Todo States
-Tap the state badge (e.g., `TODO`) to cycle through:
-- 🔴 **TODO**: Work to be done.
-- 🟠 **WAITING**: Blocked or waiting on someone else.
-- 🟢 **DONE**: Completed!
+### 2. Multi-Perspective Visualization
+Switch between different views to understand your workload:
+- **📅 Agenda**: See today's scheduled tasks and a global list of unfinished TODOs.
+- **⏳ Timeline**: A chronological view of your tasks based on scheduled dates and deadlines.
+- **📋 Kanban**: Move tasks through columns based on their state (TODO, WAITING, DONE).
 
-### 3. Agenda View
-Switch to the **Agenda** tab at the bottom to see:
-- **Today's Tasks**: Anything scheduled for today.
-- **Global TODOs**: A bird's-eye view of all unfinished tasks.
+### 3. Rich Task Metadata
+Each task can store more than just a title:
+- **Descriptions**: Add detailed notes to any task.
+- **Tags**: Categorize tasks with custom tags for easy filtering.
+- **Status Cycling**: Quickly cycle through states like `TODO`, `WAITING`, and `DONE`.
+- **Dates**: Set **Scheduled** and **Deadline** timestamps with integrated date/time pickers.
 
-### 4. Time Tracking (Clocking)
+### 4. ⚙️ Typed Custom Properties
+Go beyond basic text! Define global property types in the **Options** tab:
+- **Text**: Standard string values.
+- **Number**: Numeric values (e.g., Cost, Effort).
+- **Boolean**: Yes/No toggles.
+- **Options**: Select from a predefined list of values.
+Once defined, these properties appear as structured inputs in the Task Detail view.
+
+### 5. 🕒 Time Tracking & Logging
 Track exactly how much time you spend on a task:
-- Tap the **Clock icon** 🕒 to start tracking.
-- Tap it again (turns grey) to stop.
-- Total time is displayed right below the task.
+- **Clocking**: Start/stop a timer on any task to log effort.
+- **Activity Log**: Every state change, time log, and comment is automatically recorded in the task's history.
+- **Comments**: Add manual notes and comments to track progress.
+
+### 6. 🌓 Modern UI & Themes
+- **Material 3**: Clean, modern interface using the latest Flutter design standards.
+- **Dark Mode**: Fully supports system dark/light modes.
+- **Custom Fonts**: Uses Google Fonts (Inter) for excellent readability.
 
 ---
 
@@ -88,4 +105,5 @@ To ensure the logic is working correctly:
 flutter test
 ```
 
-Enjoy your productivity journey with Flutter and Org-mode!
+Enjoy your productivity journey with Flutter and OrgFlow!
+

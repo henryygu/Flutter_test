@@ -16,7 +16,7 @@ void main() {
     await tester.pumpWidget(const OrgApp());
 
     // Verify that the app starts at the Org Tree page.
-    expect(find.text('Org Tree'), findsOneWidget);
+    expect(find.text('OrgFlow'), findsOneWidget);
     expect(find.text('Agenda'), findsNothing);
 
     // Tap the '+' icon and trigger a frame.

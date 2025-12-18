@@ -27,7 +27,16 @@ class OrgApp extends StatelessWidget {
           brightness: Brightness.light,
           surface: const Color(0xFFF6F2FF),
         ),
-        textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+        textTheme: GoogleFonts.interTextTheme(
+          ThemeData.light().textTheme.copyWith(
+            bodyLarge: const TextStyle(fontSize: 18),
+            bodyMedium: const TextStyle(fontSize: 16),
+            titleLarge: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,
@@ -48,7 +57,16 @@ class OrgApp extends StatelessWidget {
           brightness: Brightness.dark,
           surface: const Color(0xFF1C1B1F),
         ),
-        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+        textTheme: GoogleFonts.interTextTheme(
+          ThemeData.dark().textTheme.copyWith(
+            bodyLarge: const TextStyle(fontSize: 18),
+            bodyMedium: const TextStyle(fontSize: 16),
+            titleLarge: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,

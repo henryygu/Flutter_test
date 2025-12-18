@@ -36,7 +36,7 @@ class OrgNodeWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Indentation
-              if (!isRoot && showIndentation) SizedBox(width: depth * 12.0),
+              if (!isRoot && showIndentation) SizedBox(width: depth * 16.0),
 
               // Expand/Collapse Icon
               if (node.children.isNotEmpty && showChildren)
@@ -86,7 +86,7 @@ class OrgNodeWidget extends StatelessWidget {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 10,
+                      fontSize: 11,
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -113,8 +113,8 @@ class OrgNodeWidget extends StatelessWidget {
                     ),
                   ),
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: isRoot ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 18,
+                    fontWeight: isRoot ? FontWeight.w700 : FontWeight.w500,
                     color: Theme.of(context).colorScheme.onSurface,
                     decoration: manager.isDone(node)
                         ? TextDecoration.lineThrough
@@ -149,15 +149,7 @@ class OrgNodeWidget extends StatelessWidget {
                         ? Colors.green
                         : Colors.grey.withValues(alpha: 0.5),
                   ),
-                  _ActionButton(
-                    icon: Icons.calendar_month,
-                    onPressed: () => _showDatePickerMenu(context),
-                    color: (node.scheduled != null || node.deadline != null)
-                        ? Colors.green
-                        : Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.6),
-                  ),
+
                   _ActionButton(
                     icon: Icons.add_circle_outline,
                     onPressed: () => manager.addChild(node, ''),
@@ -332,58 +324,6 @@ class OrgNodeWidget extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  void _showDatePickerMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.event, color: Colors.green),
-              title: const Text('Schedule Task'),
-              subtitle: Text(
-                node.scheduled == null
-                    ? 'Not scheduled'
-                    : DateFormat('MMM dd, yyyy').format(node.scheduled!),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _pickDate(context, isDeadline: false);
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.notification_important,
-                color: Colors.red,
-              ),
-              title: const Text('Set Deadline'),
-              subtitle: Text(
-                node.deadline == null
-                    ? 'No deadline'
-                    : DateFormat('MMM dd, yyyy').format(node.deadline!),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _pickDate(context, isDeadline: true);
-              },
-            ),
-            if (node.scheduled != null || node.deadline != null)
-              ListTile(
-                leading: const Icon(Icons.calendar_today_outlined),
-                title: const Text('Clear Dates'),
-                onTap: () {
-                  manager.setScheduled(node, null);
-                  manager.setDeadline(node, null);
-                  Navigator.pop(context);
-                },
-              ),
-          ],
-        ),
-      ),
     );
   }
 

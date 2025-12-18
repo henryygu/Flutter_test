@@ -125,6 +125,35 @@ class NodeManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  void deleteNode(OrgNode node) {
+    if (_rootNodes.contains(node)) {
+      _rootNodes.remove(node);
+    } else {
+      _deleteRecursive(_rootNodes, node);
+    }
+    if (_activeClockNode == node) {
+      _activeClockNode = null;
+    }
+    notifyListeners();
+  }
+
+  bool _deleteRecursive(List<OrgNode> nodes, OrgNode target) {
+    for (var node in nodes) {
+      if (node.children.contains(target)) {
+        node.children.remove(target);
+        return true;
+      }
+      if (_deleteRecursive(node.children, target)) return true;
+    }
+    return false;
+  }
+
+  void importFromMarkdown(String markdown) {
+    final newNodes = _persistence.parseMarkdown(markdown);
+    _rootNodes.addAll(newNodes);
+    notifyListeners();
+  }
+
   void setTodoStates(List<String> states, Map<String, Color> colors) {
     _todoStates = states;
     _stateColors = colors;

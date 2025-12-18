@@ -42,7 +42,15 @@ class _TaskDetailViewState extends State<TaskDetailView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Task Focus')),
+      appBar: AppBar(
+        title: const Text('Task Focus'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+            onPressed: () => _confirmDelete(context),
+          ),
+        ],
+      ),
       body: ListenableBuilder(
         listenable: widget.manager,
         builder: (context, _) {
@@ -800,6 +808,36 @@ class _TaskDetailViewState extends State<TaskDetailView> {
   String _formatDuration(Duration d) {
     if (d.inHours > 0) return "${d.inHours}h ${d.inMinutes.remainder(60)}m";
     return "${d.inMinutes}m ${d.inSeconds.remainder(60)}s";
+  }
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Task?'),
+        content: const Text(
+          'This will permanently remove this task and all its sub-tasks.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              widget.manager.deleteNode(widget.node);
+              Navigator.pop(context); // close dialog
+              Navigator.pop(context); // back to list
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

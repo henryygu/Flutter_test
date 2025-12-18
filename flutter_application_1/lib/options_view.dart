@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 import 'node_manager.dart';
 import 'property_models.dart';
 
@@ -259,6 +261,34 @@ class _OptionsViewState extends State<OptionsView> {
                 ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(const SnackBar(content: Text('Copied!')));
+              },
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              title: const Text('Import Markdown File'),
+              subtitle: const Text('Select a .md file to add tasks from'),
+              trailing: const Icon(Icons.file_open),
+              tileColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              onTap: () async {
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.custom,
+                  allowedExtensions: ['md', 'txt'],
+                );
+
+                if (result != null && result.files.single.path != null) {
+                  final file = File(result.files.single.path!);
+                  final content = await file.readAsString();
+                  widget.manager.importFromMarkdown(content);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Imported successfully!')),
+                  );
+                }
               },
             ),
             const SizedBox(height: 100),

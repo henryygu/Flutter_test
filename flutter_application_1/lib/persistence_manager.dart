@@ -28,6 +28,7 @@ class PersistenceManager {
     List<String> doneStates,
     List<String> allTags,
     List<String> allPropKeys,
+    String? apiKey,
   ) async {
     if (kIsWeb) return;
 
@@ -47,6 +48,9 @@ class PersistenceManager {
     buffer.writeln('DONE_STATES: ${doneStates.join(',')}');
     buffer.writeln('ALL_TAGS: ${allTags.join(',')}');
     buffer.writeln('ALL_PROP_KEYS: ${allPropKeys.join(',')}');
+    if (apiKey != null && apiKey.isNotEmpty) {
+      buffer.writeln('API_KEY: $apiKey');
+    }
     buffer.writeln();
 
     for (var node in nodes) {
@@ -57,19 +61,35 @@ class PersistenceManager {
   }
 
   Future<Map<String, dynamic>> loadData() async {
-    if (kIsWeb) return {'nodes': <OrgNode>[], 'states': null, 'colors': null};
+    if (kIsWeb)
+      return {
+        'nodes': <OrgNode>[],
+        'states': null,
+        'colors': null,
+        'apiKey': null,
+      };
 
     try {
       final file = await _localFile;
       if (!await file.exists()) {
-        return {'nodes': <OrgNode>[], 'states': null, 'colors': null};
+        return {
+          'nodes': <OrgNode>[],
+          'states': null,
+          'colors': null,
+          'apiKey': null,
+        };
       }
 
       final content = await file.readAsString();
       return _parseMarkdownExtended(content);
     } catch (e) {
       debugPrint('Error loading tasks: $e');
-      return {'nodes': <OrgNode>[], 'states': null, 'colors': null};
+      return {
+        'nodes': <OrgNode>[],
+        'states': null,
+        'colors': null,
+        'apiKey': null,
+      };
     }
   }
 
@@ -82,6 +102,7 @@ class PersistenceManager {
     List<String>? doneStates;
     List<String>? allTags;
     List<String>? allPropKeys;
+    String? apiKey;
 
     final lines = markdown.split('\n');
 
@@ -125,6 +146,8 @@ class PersistenceManager {
               .replaceFirst('ALL_PROP_KEYS:', '')
               .trim()
               .split(',');
+        } else if (line.startsWith('API_KEY:')) {
+          apiKey = line.replaceFirst('API_KEY:', '').trim();
         }
       }
     }
@@ -139,6 +162,7 @@ class PersistenceManager {
       'doneStates': doneStates,
       'allTags': allTags,
       'allPropKeys': allPropKeys,
+      'apiKey': apiKey,
     };
   }
 

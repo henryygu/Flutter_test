@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'org_node.dart';
 import 'node_manager.dart';
 import 'task_detail_view.dart';
+import 'glass_card.dart';
 
 class OrgNodeWidget extends StatelessWidget {
   final OrgNode node;
@@ -26,229 +27,172 @@ class OrgNodeWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isRoot = depth == 0;
+    final bool isActive = manager.isClockedIn(node);
 
-    Widget content = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Indentation
-              if (!isRoot && showIndentation) SizedBox(width: depth * 16.0),
-
-              // Expand/Collapse Icon
-              if (node.children.isNotEmpty && showChildren)
-                IconButton(
-                  icon: Icon(
-                    node.isExpanded
-                        ? Icons.keyboard_arrow_down
-                        : Icons.keyboard_arrow_right,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.7),
-                  ),
-                  onPressed: () => manager.toggleExpanded(node),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  iconSize: 24,
-                )
-              else
-                const SizedBox(width: 24),
-
-              const SizedBox(width: 8),
-
-              // TODO State Badge
-              GestureDetector(
-                onTap: () => _showStatePicker(context),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getStateColor(node.todoState),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _getStateColor(
-                          node.todoState,
-                        ).withValues(alpha: 0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+    Widget itemContent = AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      child: GlassCard(
+        padding: const EdgeInsets.all(12),
+        opacity: isActive ? 0.15 : 0.08,
+        blur: isActive ? 30 : 20,
+        border: Border.all(
+          color: isActive
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.8)
+              : (Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.black.withOpacity(0.05)),
+          width: isActive ? 2 : 1.5,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Expansion Icon
+                if (node.children.isNotEmpty && showChildren)
+                  GestureDetector(
+                    onTap: () => manager.toggleExpanded(node),
+                    child: AnimatedRotation(
+                      turns: node.isExpanded ? 0.25 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.chevron_right,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.5),
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    node.todoState,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                      letterSpacing: 0.5,
+                    ),
+                  )
+                else
+                  const SizedBox(width: 24),
+
+                const SizedBox(width: 8),
+
+                // Status Badge
+                GestureDetector(
+                  onTap: () => _showStatePicker(context),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStateColor(node.todoState).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _getStateColor(node.todoState).withOpacity(0.3),
+                      ),
+                    ),
+                    child: Text(
+                      node.todoState,
+                      style: TextStyle(
+                        color: _getStateColor(node.todoState),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
 
-              // Content
-              Expanded(
-                child: TextField(
-                  controller: TextEditingController(text: node.content)
-                    ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: node.content.length),
+                // Content
+                Expanded(
+                  child: TextField(
+                    controller: TextEditingController(text: node.content)
+                      ..selection = TextSelection.fromPosition(
+                        TextPosition(offset: node.content.length),
+                      ),
+                    onChanged: (val) => manager.updateNodeContent(node, val),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      isDense: true,
+                      hintText: 'Task name...',
                     ),
-                  onChanged: (val) => manager.updateNodeContent(node, val),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    isDense: true,
-                    hintText: 'New task...',
-                    hintStyle: TextStyle(
-                      fontStyle: FontStyle.italic,
-                      fontSize: 14,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: isRoot ? FontWeight.w700 : FontWeight.w500,
+                      decoration: manager.isDone(node)
+                          ? TextDecoration.lineThrough
+                          : null,
+                      color: Theme.of(context).colorScheme.onSurface
+                          .withOpacity(manager.isDone(node) ? 0.5 : 1.0),
                     ),
-                  ),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: isRoot ? FontWeight.w700 : FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    decoration: manager.isDone(node)
-                        ? TextDecoration.lineThrough
-                        : null,
                   ),
                 ),
-              ),
 
-              // Action Buttons
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _ActionButton(
-                    icon: Icons.center_focus_strong,
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            TaskDetailView(node: node, manager: manager),
-                      ),
-                    ),
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.6),
-                  ),
-                  _ActionButton(
-                    icon: Icons.access_time_filled,
-                    onPressed: () => manager.isClockedIn(node)
-                        ? manager.clockOut(node)
-                        : manager.clockIn(node),
-                    color: manager.isClockedIn(node)
-                        ? Colors.green
-                        : Colors.grey.withValues(alpha: 0.5),
-                  ),
-
-                  _ActionButton(
-                    icon: Icons.add_circle_outline,
-                    onPressed: () => manager.addChild(node, ''),
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.6),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          // Metadata Row
-          if (!forceCollapsed &&
-              (node.scheduled != null ||
-                  node.deadline != null ||
-                  node.clockLogs.isNotEmpty ||
-                  node.properties.isNotEmpty ||
-                  node.tags.isNotEmpty))
-            Padding(
-              padding: EdgeInsets.only(
-                left: (depth * 12.0) + 64,
-                bottom: 8,
-                top: 2,
-              ),
-              child: Wrap(
-                spacing: 12,
-                children: [
-                  if (node.scheduled != null)
-                    _MetadataTag(
-                      label: 'SCH: ${_formatDate(node.scheduled!)}',
-                      color: Colors.green,
-                      onTap: () => _pickDate(context, isDeadline: false),
-                    ),
-                  if (node.deadline != null)
-                    _MetadataTag(
-                      label: 'DL: ${_formatDate(node.deadline!)}',
-                      color: Colors.red,
-                      onTap: () => _pickDate(context, isDeadline: true),
-                    ),
-                  if (node.clockLogs.isNotEmpty)
-                    _MetadataTag(
-                      label: '🕒 ${_formatDuration(node.totalTimeSpent)}',
-                      color: Colors.blueGrey,
-                    ),
-                  ...node.properties.entries.map(
-                    (e) => _MetadataTag(
-                      label: '${e.key}: ${e.value}',
-                      color: Colors.purple,
+                // Action Buttons
+                _ActionButton(
+                  icon: Icons.more_horiz,
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          TaskDetailView(node: node, manager: manager),
                     ),
                   ),
-                  ...node.tags.map(
-                    (tag) =>
-                        _MetadataTag(label: '#$tag', color: Colors.blueAccent),
-                  ),
-                ],
-              ),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.4),
+                ),
+                _ActionButton(
+                  icon: isActive
+                      ? Icons.stop_circle
+                      : Icons.play_circle_outline,
+                  onPressed: () =>
+                      isActive ? manager.clockOut(node) : manager.clockIn(node),
+                  color: isActive
+                      ? Colors.redAccent
+                      : Theme.of(context).colorScheme.primary,
+                ),
+              ],
             ),
-          if (!forceCollapsed && node.description.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.only(left: (depth * 12.0) + 64, bottom: 8),
-              child: Text(
-                node.description,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey,
-                  fontStyle: FontStyle.italic,
+
+            // Metadata & Description
+            if (!forceCollapsed &&
+                (node.tags.isNotEmpty || node.scheduled != null))
+              Padding(
+                padding: const EdgeInsets.only(left: 32, top: 4),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    if (node.scheduled != null)
+                      _MetadataTag(
+                        label: _formatDate(node.scheduled!),
+                        icon: Icons.calendar_today,
+                        color: Colors.blueAccent,
+                      ),
+                    ...node.tags.map(
+                      (tag) => _MetadataTag(
+                        label: tag,
+                        icon: Icons.tag,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(left: isRoot ? 0 : 20, bottom: 8),
+      child: Column(
+        children: [
+          itemContent,
+          if (node.isExpanded && showChildren)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Column(children: _buildChildren()),
             ),
         ],
       ),
     );
-
-    if (isRoot && showIndentation) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12.0),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                content,
-                if (node.isExpanded && showChildren) ..._buildChildren(),
-              ],
-            ),
-          ),
-        ),
-      );
-    } else {
-      return Column(
-        children: [
-          content,
-          if (node.isExpanded && showChildren) ..._buildChildren(),
-        ],
-      );
-    }
   }
 
   List<Widget> _buildChildren() {
@@ -327,50 +271,9 @@ class OrgNodeWidget extends StatelessWidget {
     );
   }
 
-  void _pickDate(BuildContext context, {required bool isDeadline}) async {
-    final initial =
-        (isDeadline ? node.deadline : node.scheduled) ?? DateTime.now();
-    final DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-      helpText: isDeadline ? 'SET DEADLINE' : 'SCHEDULE TASK',
-    );
-
-    if (pickedDate != null) {
-      if (!context.mounted) return;
-      await Future.delayed(const Duration(milliseconds: 100));
-      if (!context.mounted) return;
-      final TimeOfDay? pickedTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(initial),
-      );
-
-      final finalDateTime = DateTime(
-        pickedDate.year,
-        pickedDate.month,
-        pickedDate.day,
-        pickedTime?.hour ?? initial.hour,
-        pickedTime?.minute ?? initial.minute,
-      );
-
-      if (isDeadline) {
-        manager.setDeadline(node, finalDateTime);
-      } else {
-        manager.setScheduled(node, finalDateTime);
-      }
-    }
-  }
-
   Color _getStateColor(String state) => manager.getColorForState(state);
 
   String _formatDate(DateTime dt) => DateFormat('MMM dd HH:mm').format(dt);
-
-  String _formatDuration(Duration d) {
-    if (d.inHours > 0) return "${d.inHours}h ${d.inMinutes.remainder(60)}m";
-    return "${d.inMinutes}m ${d.inSeconds.remainder(60)}s";
-  }
 }
 
 class _ActionButton extends StatelessWidget {
@@ -398,29 +301,37 @@ class _ActionButton extends StatelessWidget {
 
 class _MetadataTag extends StatelessWidget {
   final String label;
+  final IconData icon;
   final Color color;
-  final VoidCallback? onTap;
 
-  const _MetadataTag({required this.label, required this.color, this.onTap});
+  const _MetadataTag({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: color,
-            fontWeight: FontWeight.w600,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

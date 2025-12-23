@@ -4,18 +4,23 @@ import 'org_node.dart';
 import 'persistence_manager.dart';
 import 'agenda_models.dart';
 import 'property_models.dart';
+import 'ai_service.dart';
 
 class NodeManager extends ChangeNotifier {
   final List<OrgNode> _rootNodes = [];
   final PersistenceManager _persistence = PersistenceManager();
+  bool _isLoading = true;
+
+  bool get isLoading => _isLoading;
 
   List<String> _todoStates = ['TODO', 'WAITING', 'STALLED', 'DONE'];
   Map<String, Color> _stateColors = {
-    'TODO': Colors.red,
-    'WAITING': Colors.orange,
-    'STALLED': Colors.blueGrey,
-    'DONE': Colors.green,
+    'TODO': const Color(0xFF6366F1), // Bright Indigo
+    'WAITING': const Color(0xFF818CF8), // Soft Indigo
+    'STALLED': const Color(0xFF94A3B8), // Muted Slate
+    'DONE': const Color(0xFF4F46E5), // Deep Indigo (Solid)
   };
+
   Set<String> _doneStates = {'DONE'};
 
   List<String> _kanbanColumns = ['TODO', 'WAITING', 'STALLED', 'DONE'];
@@ -44,11 +49,15 @@ class NodeManager extends ChangeNotifier {
     PropertyDefinition(key: 'DONE', type: PropertyType.boolean),
   ];
 
+  String? _apiKey;
+
   NodeManager() {
     _loadFromDisk();
   }
 
   Future<void> _loadFromDisk() async {
+    _isLoading = true;
+    notifyListeners();
     final data = await _persistence.loadData();
     final List<OrgNode> loadedNodes = data['nodes'] ?? [];
 
@@ -73,10 +82,12 @@ class NodeManager extends ChangeNotifier {
       if (data['allTags'] != null) {
         _allTags = List<String>.from(data['allTags']);
       }
-      if (data['allPropKeys'] != null) {
-        _propertyDefinitions = (data['allPropKeys'] as List<String>)
-            .map((s) => PropertyDefinition.deserialize(s))
-            .toList();
+      _propertyDefinitions = (data['allPropKeys'] as List<String>)
+          .map((s) => PropertyDefinition.deserialize(s))
+          .toList();
+
+      if (data['apiKey'] != null) {
+        _apiKey = data['apiKey'];
       }
     } else {
       // First run or empty file
@@ -87,6 +98,7 @@ class NodeManager extends ChangeNotifier {
         ),
       );
     }
+    _isLoading = false;
     notifyListeners();
   }
 
@@ -100,6 +112,7 @@ class NodeManager extends ChangeNotifier {
       _doneStates.toList(),
       _allTags,
       _propertyDefinitions.map((d) => d.serialize()).toList(),
+      _apiKey,
     );
   }
 
@@ -111,6 +124,7 @@ class NodeManager extends ChangeNotifier {
   Set<String> get doneStates => _doneStates;
   List<String> get allTags => _allTags;
   List<PropertyDefinition> get propertyDefinitions => _propertyDefinitions;
+  String? get apiKey => _apiKey;
 
   bool isDone(OrgNode node) => _doneStates.contains(node.todoState);
 
@@ -348,5 +362,31 @@ class NodeManager extends ChangeNotifier {
       result.addAll(collectAllNodes(node.children));
     }
     return result;
+  }
+
+  void setApiKey(String key) {
+    _apiKey = key;
+    notifyListeners();
+  }
+
+  Future<void> magicAdd(String prompt) async {
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      throw Exception('API Key not set');
+    }
+    final service = AIService(_apiKey!);
+    final newNodes = await service.generateTasks(prompt);
+
+    // Create a container for the new tasks or add them to root
+    if (newNodes.isNotEmpty) {
+      if (newNodes.length == 1) {
+        // If single task, just add it
+        _rootNodes.add(newNodes.first);
+      } else {
+        // If multiple, maybe group them? Or just add all
+        // Adding all to root for now
+        _rootNodes.addAll(newNodes);
+      }
+      notifyListeners();
+    }
   }
 }

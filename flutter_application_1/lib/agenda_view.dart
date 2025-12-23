@@ -35,7 +35,10 @@ class AgendaView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             children: [
               if (sections.isEmpty)
-                _buildEmptyState('No sections configured. Add one in settings!')
+                _buildEmptyState(
+                  context,
+                  'No sections configured. Add one in settings!',
+                )
               else
                 ...sections.map(
                   (s) => _buildSection(context, s, allNodes, now),
@@ -103,7 +106,7 @@ class AgendaView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(section.title, Icons.label_important_outline),
+        _buildHeader(context, section.title, Icons.label_important_outline),
         const SizedBox(height: 12),
         ...filtered.map(
           (n) => OrgNodeWidget(
@@ -145,9 +148,9 @@ class AgendaView extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.add_circle_outline,
-                        color: Colors.blue,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       onPressed: () => _showEditSectionDialog(context, null),
                     ),
@@ -182,10 +185,12 @@ class AgendaView extends StatelessWidget {
                                       _showEditSectionDialog(context, s),
                                 ),
                                 IconButton(
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.delete_outline,
                                     size: 20,
-                                    color: Colors.red,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary.withOpacity(0.8),
                                   ),
                                   onPressed: () {
                                     final list = List<AgendaSection>.from(
@@ -383,38 +388,44 @@ class AgendaView extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(String title, IconData icon) {
+  Widget _buildHeader(BuildContext context, String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.blueGrey),
+        Icon(
+          icon,
+          size: 20,
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+        ),
         const SizedBox(width: 8),
         Text(
           title.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.2,
-            color: Colors.blueGrey,
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildEmptyState(String message) {
+  Widget _buildEmptyState(BuildContext context, String message) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blueGrey.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        ),
       ),
       child: Center(
         child: Text(
           message,
           style: const TextStyle(
             fontStyle: FontStyle.italic,
-            color: Colors.blueGrey,
+            color: Color(0xFF94A3B8),
           ),
         ),
       ),

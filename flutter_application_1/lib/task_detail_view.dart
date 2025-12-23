@@ -5,6 +5,7 @@ import 'org_node.dart';
 import 'node_manager.dart';
 import 'org_node_widget.dart';
 import 'property_models.dart';
+import 'glass_card.dart';
 
 class TaskDetailView extends StatefulWidget {
   final OrgNode node;
@@ -51,174 +52,213 @@ class _TaskDetailViewState extends State<TaskDetailView> {
           ),
         ],
       ),
-      body: ListenableBuilder(
-        listenable: widget.manager,
-        builder: (context, _) {
-          final color = widget.manager.getColorForState(widget.node.todoState);
-
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            children: [
-              // Header Area
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GestureDetector(
-                    onTap: () => _showStatePicker(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        widget.node.todoState,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      widget.node.content.isEmpty
-                          ? 'Untitled Task'
-                          : widget.node.content,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Metadata Row
-              _buildMetadataSection(context),
-
-              const Divider(height: 48),
-
-              // Description Section
-              _buildSectionTitle('DESCRIPTION', Icons.description_outlined),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _descController,
-                maxLines: null,
-                decoration: InputDecoration(
-                  hintText: 'Add a detailed description...',
-                  filled: true,
-                  fillColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                onChanged: (val) =>
-                    widget.manager.updateNodeDescription(widget.node, val),
-              ),
-
-              const Divider(height: 48),
-
-              // Tags Section
-              _buildTagsSection(context),
-
-              const Divider(height: 48),
-
-              // Properties Section
-              _buildPropertiesSection(context),
-
-              const Divider(height: 48),
-
-              // Sub-tasks Section
-              _buildSectionTitle('SUB-TASKS', Icons.account_tree_outlined),
-              const SizedBox(height: 12),
-              if (widget.node.children.isEmpty)
-                const Text(
-                  'No sub-tasks nested here.',
-                  style: TextStyle(fontStyle: FontStyle.italic),
-                )
-              else
-                ...widget.node.children.map(
-                  (child) => OrgNodeWidget(
-                    node: child,
-                    manager: widget.manager,
-                    depth: 0,
-                  ),
-                ),
-
-              const Divider(height: 48),
-
-              // Comments Section
-              _buildSectionTitle('COMMENTS & LOGS', Icons.forum_outlined),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _commentController,
-                      decoration: InputDecoration(
-                        hintText: 'Add a comment...',
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  IconButton.filled(
-                    onPressed: () {
-                      if (_commentController.text.isNotEmpty) {
-                        widget.manager.addManualLog(
-                          widget.node,
-                          _commentController.text,
-                        );
-                        _commentController.clear();
-                      }
-                    },
-                    icon: const Icon(Icons.send),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Log Entries
-              if (widget.node.history.isEmpty)
-                const Center(
-                  child: Text(
-                    'No activity yet',
-                    style: TextStyle(fontStyle: FontStyle.italic),
-                  ),
-                )
-              else
-                ...widget.node.history.reversed.map(
-                  (entry) => _buildLogEntry(context, entry),
-                ),
-
-              const SizedBox(height: 80),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Theme.of(context).colorScheme.surface,
+              Theme.of(
+                context,
+              ).colorScheme.surface.withBlue(50).withOpacity(0.9),
             ],
-          );
-        },
+          ),
+        ),
+        child: ListenableBuilder(
+          listenable: widget.manager,
+          builder: (context, _) {
+            final color = widget.manager.getColorForState(
+              widget.node.todoState,
+            );
+
+            return ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              children: [
+                // Focused Header
+                GlassCard(
+                  padding: const EdgeInsets.all(24),
+                  blur: 30,
+                  opacity: 0.12,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _showStatePicker(context),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: color.withOpacity(0.4),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            widget.node.todoState,
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 10,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        widget.node.content.isEmpty
+                            ? 'Untitled Task'
+                            : widget.node.content,
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1.2,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Metadata Row
+                _buildMetadataSection(context),
+
+                const Divider(height: 48),
+
+                // Description Section
+                _buildModernSection(
+                  context,
+                  title: 'DESCRIPTION',
+                  icon: Icons.description_outlined,
+                  child: TextField(
+                    controller: _descController,
+                    maxLines: null,
+                    style: const TextStyle(fontSize: 16, height: 1.5),
+                    decoration: InputDecoration(
+                      hintText: 'Add a detailed description...',
+                      filled: true,
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainer.withOpacity(0.5),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (val) =>
+                        widget.manager.updateNodeDescription(widget.node, val),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Tags Section
+                _buildModernSection(
+                  context,
+                  title: 'TAGS',
+                  icon: Icons.local_offer_outlined,
+                  child: _buildTagsWrap(context),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Properties Section
+                _buildModernSection(
+                  context,
+                  title: 'PROPERTIES',
+                  icon: Icons.settings_outlined,
+                  action: IconButton(
+                    onPressed: () => _showAddPropertyDialog(context),
+                    icon: const Icon(Icons.add_circle_outline, size: 20),
+                  ),
+                  child: _buildPropertiesWrap(context),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Sub-tasks Section
+                _buildSectionTitle('SUB-TASKS', Icons.account_tree_outlined),
+                const SizedBox(height: 12),
+                if (widget.node.children.isEmpty)
+                  const Text(
+                    'No sub-tasks nested here.',
+                    style: TextStyle(fontStyle: FontStyle.italic),
+                  )
+                else
+                  ...widget.node.children.map(
+                    (child) => OrgNodeWidget(
+                      node: child,
+                      manager: widget.manager,
+                      depth: 0,
+                    ),
+                  ),
+
+                const Divider(height: 48),
+
+                // Comments Section
+                _buildSectionTitle('COMMENTS & LOGS', Icons.forum_outlined),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _commentController,
+                        decoration: InputDecoration(
+                          hintText: 'Add a comment...',
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton.filled(
+                      onPressed: () {
+                        if (_commentController.text.isNotEmpty) {
+                          widget.manager.addManualLog(
+                            widget.node,
+                            _commentController.text,
+                          );
+                          _commentController.clear();
+                        }
+                      },
+                      icon: const Icon(Icons.send),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Log Entries
+                if (widget.node.history.isEmpty)
+                  const Center(
+                    child: Text(
+                      'No activity yet',
+                      style: TextStyle(fontStyle: FontStyle.italic),
+                    ),
+                  )
+                else
+                  ...widget.node.history.reversed.map(
+                    (entry) => _buildLogEntry(context, entry),
+                  ),
+
+                const SizedBox(height: 80),
+              ],
+            );
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => widget.manager.addChild(widget.node, ''),
@@ -262,44 +302,6 @@ class _TaskDetailViewState extends State<TaskDetailView> {
           icon: Icons.timer_outlined,
           color: Colors.blueGrey,
         ),
-      ],
-    );
-  }
-
-  Widget _buildPropertiesSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildSectionTitle('CUSTOM PROPERTIES', Icons.settings_outlined),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: () => _showAddPropertyDialog(context),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (widget.node.properties.isEmpty)
-          const Text(
-            'No custom metadata.',
-            style: TextStyle(
-              fontStyle: FontStyle.italic,
-              fontSize: 13,
-              color: Colors.grey,
-            ),
-          )
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: widget.node.properties.entries
-                .map((e) => _buildPropertyChip(context, e.key, e.value))
-                .toList(),
-          ),
       ],
     );
   }
@@ -504,7 +506,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
               )
             else if (def.type == PropertyType.options)
               DropdownButtonFormField<String>(
-                value: def.options.contains(localVal) ? localVal : null,
+                initialValue: def.options.contains(localVal) ? localVal : null,
                 items: def.options
                     .map((o) => DropdownMenuItem(value: o, child: Text(o)))
                     .toList(),
@@ -530,42 +532,6 @@ class _TaskDetailViewState extends State<TaskDetailView> {
             Navigator.pop(context);
           },
           child: const Text('Save'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTagsSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle('TAGS', Icons.local_offer_outlined),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ...widget.node.tags.map(
-              (tag) => Chip(
-                label: Text('#$tag', style: const TextStyle(fontSize: 12)),
-                onDeleted: () => widget.manager.removeTag(widget.node, tag),
-                deleteIcon: const Icon(Icons.close, size: 14),
-                backgroundColor: Colors.blueAccent.withValues(alpha: 0.1),
-                side: BorderSide.none,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-            ActionChip(
-              avatar: const Icon(Icons.add, size: 14),
-              label: const Text('Add Tag', style: TextStyle(fontSize: 12)),
-              onPressed: () => _showAddTagDialog(context),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ],
         ),
       ],
     );
@@ -798,10 +764,11 @@ class _TaskDetailViewState extends State<TaskDetailView> {
         pickedTime?.hour ?? initial.hour,
         pickedTime?.minute ?? initial.minute,
       );
-      if (isDeadline)
+      if (isDeadline) {
         widget.manager.setDeadline(widget.node, finalDateTime);
-      else
+      } else {
         widget.manager.setScheduled(widget.node, finalDateTime);
+      }
     }
   }
 
@@ -839,6 +806,105 @@ class _TaskDetailViewState extends State<TaskDetailView> {
       ),
     );
   }
+
+  Widget _buildModernSection(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Widget child,
+    Widget? action,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 14,
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+            if (action != null) action,
+          ],
+        ),
+        const SizedBox(height: 12),
+        GlassCard(
+          padding: const EdgeInsets.all(20),
+          blur: 15,
+          opacity: 0.05,
+          child: child,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTagsWrap(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ...widget.node.tags.map(
+          (tag) => Chip(
+            label: Text(
+              '#$tag',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            onDeleted: () => widget.manager.removeTag(widget.node, tag),
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withOpacity(0.1),
+            side: BorderSide.none,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        ActionChip(
+          label: const Text('Add Tag', style: TextStyle(fontSize: 12)),
+          onPressed: () => _showAddTagDialog(context),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPropertiesWrap(BuildContext context) {
+    if (widget.node.properties.isEmpty) {
+      return Text(
+        'No custom properties set.',
+        style: TextStyle(
+          fontStyle: FontStyle.italic,
+          color: Theme.of(context).disabledColor,
+        ),
+      );
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: widget.node.properties.entries
+          .map((e) => _buildPropertyChip(context, e.key, e.value))
+          .toList(),
+    );
+  }
 }
 
 class _MetadataItem extends StatelessWidget {
@@ -858,34 +924,42 @@ class _MetadataItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        borderRadius: BorderRadius.circular(20),
+        blur: 10,
+        opacity: 0.06,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              label.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                color: Colors.blueGrey,
-              ),
+            Icon(
+              icon,
+              size: 16,
+              color: color ?? Theme.of(context).colorScheme.primary,
             ),
-            const SizedBox(height: 4),
-            Row(
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 14, color: color ?? Colors.blueGrey),
-                const SizedBox(width: 8),
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.0,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
                 Text(
                   value,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: color,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
